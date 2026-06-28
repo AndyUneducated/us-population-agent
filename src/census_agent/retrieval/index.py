@@ -1,17 +1,14 @@
-"""Build and load vector index over census field descriptions."""
+"""Build and load lexical index over census field descriptions."""
 
 from __future__ import annotations
 
 import json
-import math
+import re
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-import numpy as np
-
 from census_agent.config import Settings, get_settings
 from census_agent.data.gateway import DataGateway
-from census_agent.llm.embeddings import EmbeddingClient
 
 
 @dataclass
@@ -22,26 +19,31 @@ class IndexedField:
     table_topics: str
     description: str
     physical_table_suffix: str
-    embedding: list[float]
 
 
-def _cosine(a: np.ndarray, b: np.ndarray) -> float:
-    denom = np.linalg.norm(a) * np.linalg.norm(b)
-    if denom == 0:
+def _tokenize(text: str) -> set[str]:
+    return {w for w in re.findall(r"[a-z0-9]+", text.lower()) if len(w) > 2}
+
+
+def _lexical_score(query: str, text: str) -> float:
+    q_tokens = _tokenize(query)
+    if not q_tokens:
         return 0.0
-    return float(np.dot(a, b) / denom)
+    t_tokens = _tokenize(text)
+    return len(q_tokens & t_tokens) / len(q_tokens)
 
 
 class FieldIndex:
     def __init__(self, entries: list[IndexedField]) -> None:
         self.entries = entries
-        self._matrix = np.array([e.embedding for e in entries], dtype=np.float32)
 
-    def search(self, query_embedding: list[float], top_k: int = 8) -> list[tuple[IndexedField, float]]:
-        q = np.array(query_embedding, dtype=np.float32)
-        scores = [(_cosine(q, self._matrix[i]), i) for i in range(len(self.entries))]
+    def search(self, query: str, top_k: int = 8) -> list[tuple[IndexedField, float]]:
+        scores = [
+            (_lexical_score(query, f"{e.table_title} {e.description}"), i)
+            for i, e in enumerate(self.entries)
+        ]
         scores.sort(reverse=True)
-        return [(self.entries[i], s) for s, i in scores[:top_k]]
+        return [(self.entries[i], s) for s, i in scores[:top_k] if s > 0]
 
     def save(self, path: Path) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -51,7 +53,10 @@ class FieldIndex:
     @classmethod
     def load(cls, path: Path) -> FieldIndex:
         payload = json.loads(path.read_text(encoding="utf-8"))
-        entries = [IndexedField(**item) for item in payload]
+        entries: list[IndexedField] = []
+        for item in payload:
+            item.pop("embedding", None)
+            entries.append(IndexedField(**item))
         return cls(entries)
 
 
@@ -78,14 +83,12 @@ def _suffix_for_number(table_number: str) -> str:
 
 def build_field_index(
     gateway: DataGateway,
-    embedder: EmbeddingClient,
     settings: Settings | None = None,
     limit: int | None = 500,
 ) -> FieldIndex:
     settings = settings or get_settings()
     meta = settings.metadata_table("FIELD_DESCRIPTIONS")
 
-    # Only estimate columns (e*) to reduce noise
     prefix_filters = " OR ".join(
         f"TABLE_NUMBER LIKE '{p}%'"
         for suffix in INDEX_TABLE_SUFFIXES
@@ -105,10 +108,8 @@ def build_field_index(
     """
     rows = gateway.execute(sql)
     entries: list[IndexedField] = []
-    for i, row in enumerate(rows):
+    for row in rows:
         desc = str(row["DESCRIPTION"] or row["TABLE_TITLE"])
-        text = f"{row['TABLE_TITLE']}: {desc}"
-        vec = embedder.embed(text)
         suffix = _suffix_for_number(str(row["TABLE_NUMBER"]))
         entries.append(
             IndexedField(
@@ -118,7 +119,6 @@ def build_field_index(
                 table_topics=str(row["TABLE_TOPICS"] or ""),
                 description=desc,
                 physical_table_suffix=suffix,
-                embedding=vec,
             )
         )
     return FieldIndex(entries)

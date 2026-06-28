@@ -9,7 +9,34 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 _ROOT = Path(__file__).resolve().parents[2]
-load_dotenv(_ROOT / ".env")
+
+
+def _load_streamlit_secrets() -> None:
+    """Merge Streamlit secrets into os.environ (Community Cloud + local secrets.toml)."""
+    try:
+        import streamlit as st
+    except ImportError:
+        return
+    try:
+        items = list(st.secrets.items())
+    except Exception:
+        return
+    for key, value in items:
+        if isinstance(value, dict):
+            section = str(key).upper()
+            for subkey, subval in value.items():
+                env_key = f"{section}_{str(subkey).upper()}"
+                os.environ.setdefault(env_key, str(subval))
+        else:
+            os.environ.setdefault(str(key), str(value))
+
+
+def _bootstrap_env() -> None:
+    load_dotenv(_ROOT / ".env")
+    _load_streamlit_secrets()
+
+
+_bootstrap_env()
 
 
 def _env(key: str, default: str = "") -> str:
@@ -36,7 +63,7 @@ class Settings:
     data_backend: str = field(default_factory=lambda: _env("DATA_BACKEND", "duckdb").lower())
 
     # Census vintage
-    census_year: int = field(default_factory=lambda: int(_env("CENSUS_YEAR", "2019")))
+    census_year: int = field(default_factory=lambda: int(_env("CENSUS_YEAR", "2020")))
 
     # Local artifacts
     project_root: Path = field(default_factory=lambda: _ROOT)
@@ -50,19 +77,17 @@ class Settings:
         )
     )
 
-    # LLM / embeddings (Ollama default)
-    llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "ollama").lower())
-    ollama_base_url: str = field(
-        default_factory=lambda: _env("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+    # LLM (Google Gemini)
+    llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "gemini").lower())
+    gemini_api_key: str = field(default_factory=lambda: _env("GEMINI_API_KEY"))
+    gemini_model: str = field(
+        default_factory=lambda: _env("GEMINI_MODEL", "gemini-flash-lite-latest")
     )
-    ollama_embed_model: str = field(
-        default_factory=lambda: _env("OLLAMA_EMBED_MODEL", "qwen3-embedding:8b")
-    )
-    ollama_model_fast: str = field(
-        default_factory=lambda: _env("OLLAMA_MODEL_FAST", "qwen3.5:9b")
-    )
-    ollama_model_main: str = field(
-        default_factory=lambda: _env("OLLAMA_MODEL_MAIN", "qwen3.5:9b")
+    gemini_base_url: str = field(
+        default_factory=lambda: _env(
+            "GEMINI_BASE_URL",
+            "https://generativelanguage.googleapis.com/v1beta",
+        )
     )
     query_timeout_seconds: int = field(
         default_factory=lambda: int(_env("QUERY_TIMEOUT_SECONDS", "30"))
@@ -74,7 +99,7 @@ class Settings:
         return f'"{self.snowflake_database}"."{self.snowflake_schema}"'
 
     def table_name(self, suffix: str) -> str:
-        """Physical table name for a census year, e.g. 2019_CBG_B01."""
+        """Physical table name for a census year, e.g. 2020_CBG_B01."""
         return f"{self.census_year}_CBG_{suffix}"
 
     def metadata_table(self, name: str) -> str:

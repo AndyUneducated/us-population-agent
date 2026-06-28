@@ -43,9 +43,10 @@ Allowed tables: {', '.join(tables)}
 Candidate columns:
 {field_lines}
 
-FIPS table: "{settings.metadata_table('FIPS_CODES')}" with STATE, STATE_FIPS, COUNTY, COUNTY_FIPS.
+FIPS table: "{settings.metadata_table('FIPS_CODES')}" with STATE (2-letter abbr, e.g. WA, CA), STATE_FIPS, COUNTY, COUNTY_FIPS.
 Join: LEFT(d.CENSUS_BLOCK_GROUP,2)=f.STATE_FIPS AND SUBSTR(d.CENSUS_BLOCK_GROUP,3,3)=f.COUNTY_FIPS
+Filter states using f.STATE = 'WA' not full names.
 """
-    client = ChatClient(settings, model=settings.ollama_model_main)
+    client = ChatClient(settings)
     raw = client.complete(system, user)
     return _extract_sql(raw)

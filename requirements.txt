@@ -1,0 +1,8 @@
+# Streamlit Community Cloud — install from repo root (app.py adds src/ to PYTHONPATH)
+streamlit>=1.40.0
+duckdb>=1.1.0
+numpy>=1.26.0
+python-dotenv>=1.0.0
+certifi>=2024.0.0
+snowflake-connector-python>=3.12.0
+sqlglot>=25.0.0

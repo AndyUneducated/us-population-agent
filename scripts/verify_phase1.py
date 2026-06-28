@@ -11,7 +11,6 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from census_agent.config import get_settings
 from census_agent.data.gateway import get_data_gateway
-from census_agent.llm.embeddings import EmbeddingClient
 from census_agent.retrieval.index import FieldIndex
 from census_agent.retrieval.retriever import SchemaRetriever
 from census_agent.semantic.catalog import SemanticCatalog
@@ -59,7 +58,7 @@ def main() -> int:
         # Vector retrieval (if index exists)
         if settings.embedding_index_path.exists():
             index = FieldIndex.load(settings.embedding_index_path)
-            retriever = SchemaRetriever(catalog, index, EmbeddingClient(settings))
+            retriever = SchemaRetriever(catalog, index)
             r = retriever.retrieve("unemployment rate by county")
             if not r.fields:
                 errors.append("retrieval fail: no fields for unemployment")

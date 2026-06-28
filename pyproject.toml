@@ -8,6 +8,7 @@ dependencies = [
     "duckdb>=1.1.0",
     "numpy>=1.26.0",
     "python-dotenv>=1.0.0",
+    "certifi>=2024.0.0",
     "snowflake-connector-python>=3.12.0",
     "sqlglot>=25.0.0",
     "streamlit>=1.40.0",
@@ -28,3 +29,6 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+markers = [
+    "e2e: end-to-end tests that may call Gemini (deselect with '-m \"not e2e\"')",
+]

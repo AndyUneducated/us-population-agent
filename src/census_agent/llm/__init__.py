@@ -1,5 +1,5 @@
 """LLM utilities."""
 
-from census_agent.llm.embeddings import EmbeddingClient
+from census_agent.llm.chat import ChatClient
 
-__all__ = ["EmbeddingClient"]
+__all__ = ["ChatClient"]

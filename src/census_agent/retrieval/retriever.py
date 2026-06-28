@@ -1,11 +1,10 @@
-"""Schema retriever: fast-path metrics + vector search over field index."""
+"""Schema retriever: fast-path metrics + lexical search over field index."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from census_agent.config import Settings, get_settings
-from census_agent.llm.embeddings import EmbeddingClient
 from census_agent.retrieval.index import FieldIndex
 from census_agent.semantic.catalog import FieldInfo, SemanticCatalog
 
@@ -22,12 +21,10 @@ class SchemaRetriever:
         self,
         catalog: SemanticCatalog,
         index: FieldIndex,
-        embedder: EmbeddingClient | None = None,
         settings: Settings | None = None,
     ) -> None:
         self._catalog = catalog
         self._index = index
-        self._embedder = embedder or EmbeddingClient(settings)
         self._settings = settings or get_settings()
 
     def retrieve(self, query: str, top_k: int = 8) -> RetrievalResult:
@@ -39,8 +36,7 @@ class SchemaRetriever:
                 scores=[1.0],
             )
 
-        q_emb = self._embedder.embed(query)
-        hits = self._index.search(q_emb, top_k=top_k)
+        hits = self._index.search(query, top_k=top_k)
         fields = [
             FieldInfo(
                 table_id=h.table_id,
@@ -54,4 +50,4 @@ class SchemaRetriever:
             for h, _ in hits
         ]
         scores = [s for _, s in hits]
-        return RetrievalResult(source="vector_retrieval", fields=fields, scores=scores)
+        return RetrievalResult(source="lexical_retrieval", fields=fields, scores=scores)
