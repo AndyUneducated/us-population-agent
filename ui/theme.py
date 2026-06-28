@@ -344,6 +344,174 @@ div[data-testid="stPageLink"] a {
     margin: 1.75rem 0 0.85rem !important;
 }
 
+/* Section header (eyebrow kicker + title + sub) */
+.section-head {
+    margin: 2.25rem 0 1.05rem;
+}
+
+.sh-kicker {
+    display: inline-block;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid rgba(34, 211, 238, 0.28);
+    border-radius: 999px;
+    padding: 0.22rem 0.7rem;
+}
+
+.sh-title {
+    font-size: 1.45rem !important;
+    font-weight: 700 !important;
+    color: var(--text) !important;
+    margin: 0.6rem 0 0.2rem !important;
+    line-height: 1.2 !important;
+}
+
+.sh-sub {
+    color: var(--muted) !important;
+    font-size: 0.9rem !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    max-width: 640px;
+}
+
+/* Conversation preview (flagship multi-turn comparison) */
+.convo {
+    background: linear-gradient(180deg, rgba(34, 211, 238, 0.06), rgba(17, 24, 39, 0.97));
+    border: 1px solid rgba(34, 211, 238, 0.22);
+    border-radius: 18px;
+    padding: 1.2rem 1.3rem 1.05rem;
+    box-shadow: 0 20px 44px -28px rgba(34, 211, 238, 0.5);
+}
+
+.convo-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.85rem;
+}
+
+.convo-tag::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--success);
+    box-shadow: 0 0 0 3px rgba(52, 211, 153, 0.18);
+}
+
+.bubble {
+    display: flex;
+    gap: 0.55rem;
+    margin: 0.5rem 0;
+    align-items: flex-start;
+}
+
+.bubble.bot { flex-direction: row-reverse; }
+
+.bubble .who {
+    flex: 0 0 auto;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8rem;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+}
+
+.bubble .msg {
+    border-radius: 12px;
+    padding: 0.55rem 0.8rem;
+    font-size: 0.88rem;
+    line-height: 1.45;
+    max-width: 82%;
+}
+
+.bubble.user .msg {
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-top-left-radius: 4px;
+}
+
+.bubble.bot .msg {
+    background: rgba(34, 211, 238, 0.1);
+    border: 1px solid rgba(34, 211, 238, 0.25);
+    color: #d6f4fb;
+    border-top-right-radius: 4px;
+}
+
+.bubble .msg b { color: var(--accent); font-variant-numeric: tabular-nums; }
+.bubble .msg .mem { color: var(--success); font-size: 0.78rem; }
+
+.convo-note {
+    color: var(--muted);
+    font-size: 0.8rem;
+    line-height: 1.5;
+    margin-top: 0.75rem;
+    padding-top: 0.7rem;
+    border-top: 1px dashed var(--border);
+}
+
+.convo-note b { color: var(--accent); }
+
+/* Quick-launch chips (clickable buttons) */
+.chips-intro {
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin: 1.15rem 0 0.5rem;
+}
+
+.st-key-chips .stButton > button {
+    width: 100%;
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 999px !important;
+    color: var(--muted) !important;
+    font-size: 0.82rem !important;
+    font-weight: 500 !important;
+    padding: 0.55rem 0.7rem !important;
+    transition: transform 0.14s ease, border-color 0.14s ease, color 0.14s ease, background 0.14s ease !important;
+}
+
+.st-key-chips .stButton > button:hover {
+    border-color: var(--accent) !important;
+    color: var(--accent) !important;
+    background: var(--accent-dim) !important;
+    transform: translateY(-1px);
+}
+
+/* Run-conversation CTA — scoped */
+.st-key-convocta .stButton > button {
+    width: 100%;
+    background: linear-gradient(135deg, rgba(6, 182, 212, 0.18), rgba(2, 132, 199, 0.14)) !important;
+    border: 1px solid rgba(34, 211, 238, 0.45) !important;
+    border-radius: 12px !important;
+    color: var(--accent) !important;
+    font-weight: 600 !important;
+    font-size: 0.9rem !important;
+    padding: 0.6rem 1rem !important;
+    margin-top: 0.85rem !important;
+    transition: transform 0.14s ease, box-shadow 0.14s ease !important;
+}
+
+.st-key-convocta .stButton > button:hover {
+    transform: translateY(-1px);
+    color: #fff !important;
+    box-shadow: 0 12px 30px -16px rgba(34, 211, 238, 0.8) !important;
+}
+
 .pipeline-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));

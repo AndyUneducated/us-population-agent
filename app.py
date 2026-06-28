@@ -98,46 +98,77 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown('<p class="section-title">Example questions — click to launch</p>', unsafe_allow_html=True)
-example_items = [
-    (
-        "State comparison",
-        "Compare population between California and Texas, then explain the difference.",
-        "Compare population between California and Texas, then explain the difference.",
-    ),
-    (
-        "Economic signal",
-        "What is the median household income in New York, and how should I interpret it?",
-        "What is the median household income in New York, and how should I interpret it?",
-    ),
-    (
-        "Labor market",
-        "What is the unemployment rate in Florida? Show the SQL behind it.",
-        "What is the unemployment rate in Florida? Show the SQL behind it.",
-    ),
-    (
-        "Follow-up ready",
-        "Start with California population — then just ask “what about Texas?”",
-        "What is the total population of California?",
-    ),
-]
-example_cols = st.columns(4)
-for col, (title, copy, seed) in zip(example_cols, example_items):
-    with col:
-        st.markdown(
-            f"""
-<div class="example-card">
-  <div class="example-title">{title}</div>
-  <div class="example-copy">{copy}</div>
+def _launch(seed: str) -> None:
+    st.session_state["seed_prompt"] = seed
+    st.switch_page("pages/1_💬_Chat.py")
+
+
+# ── Section 01 · See it think across turns ────────────────────────────────────
+st.markdown(
+    """
+<div class="section-head">
+  <span class="sh-kicker">01 · Try it</span>
+  <h2 class="sh-title">See it reason across turns</h2>
+  <p class="sh-sub">It doesn't just answer once. Compare states, switch the metric,
+  and it keeps your context — no re-typing.</p>
 </div>
 """,
-            unsafe_allow_html=True,
-        )
-        if st.button("Ask this", key=f"ex_{title}", use_container_width=True):
-            st.session_state["seed_prompt"] = seed
-            st.switch_page("pages/1_💬_Chat.py")
+    unsafe_allow_html=True,
+)
 
-st.markdown('<p class="section-title">Why this stands out</p>', unsafe_allow_html=True)
+st.markdown(
+    """
+<div class="convo">
+  <div class="convo-tag">Flagship · multi-turn comparison</div>
+  <div class="bubble user"><div class="who">🧑</div>
+    <div class="msg">Compare population: California vs Texas</div></div>
+  <div class="bubble bot"><div class="who">📊</div>
+    <div class="msg"><b>CA 39.3M</b> · <b>TX 28.3M</b> — CA is ~1.4× larger
+    (gap ≈ 11M).</div></div>
+  <div class="bubble user"><div class="who">🧑</div>
+    <div class="msg">What about median household income?</div></div>
+  <div class="bubble bot"><div class="who">📊</div>
+    <div class="msg"><span class="mem">↺ remembers both states</span><br>
+    <b>CA ~$78K</b> · <b>TX ~$64K</b> — same comparison, new metric.</div></div>
+  <div class="convo-note">The <b>comparison set</b> persists as a first-class slot, so
+  "what about income?" re-runs for <b>both</b> states instead of dropping to one.</div>
+</div>
+""",
+    unsafe_allow_html=True,
+)
+with st.container(key="convocta"):
+    if st.button("▶  Run this conversation", key="run_convo", use_container_width=True):
+        _launch("Compare population between California and Texas, then explain the difference.")
+
+st.markdown('<p class="chips-intro">Or jump straight in with a single question:</p>', unsafe_allow_html=True)
+quick_questions = [
+    ("📊  Median income in New York", "What is the median household income in New York?"),
+    ("🏆  Higher income: NY or FL?", "Which has higher median household income, New York or Florida?"),
+    ("🧮  Florida unemployment + SQL", "What is the unemployment rate in Florida? Show the SQL behind it."),
+    ("📍  Population of Santa Clara County", "What is the total population of Santa Clara County?"),
+    ("⚖️  Median age: CA, TX & FL", "Compare median age in California, Texas, and Florida."),
+    ("🏠  Homeownership rate in Texas", "What is the homeownership rate in Texas?"),
+]
+with st.container(key="chips"):
+    chip_rows = [quick_questions[i : i + 3] for i in range(0, len(quick_questions), 3)]
+    for row in chip_rows:
+        cols = st.columns(len(row))
+        for col, (label, seed) in zip(cols, row):
+            with col:
+                if st.button(label, key=f"chip_{label}", use_container_width=True):
+                    _launch(seed)
+
+# ── Section 02 · Why this stands out ──────────────────────────────────────────
+st.markdown(
+    """
+<div class="section-head">
+  <span class="sh-kicker">02 · Why it's different</span>
+  <h2 class="sh-title">Engineered to be trusted</h2>
+  <p class="sh-sub">Three principles a reviewer can verify in the code, not just the demo.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 f1, f2, f3 = st.columns(3)
 with f1:
     st.markdown(
@@ -173,7 +204,16 @@ with f3:
         unsafe_allow_html=True,
     )
 
-st.markdown('<p class="section-title">The pipeline</p>', unsafe_allow_html=True)
+st.markdown(
+    """
+<div class="section-head">
+  <span class="sh-kicker">03 · Under the hood</span>
+  <h2 class="sh-title">How an answer is built</h2>
+  <p class="sh-sub">Five guarded stages — every number is computed and traceable end to end.</p>
+</div>
+""",
+    unsafe_allow_html=True,
+)
 st.markdown(
     """
 <div class="pipeline-grid">
