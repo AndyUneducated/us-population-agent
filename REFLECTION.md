@@ -71,6 +71,16 @@ makes the swap a config flag. A small but real correctness win added late: the a
 **auto-resolves the census year to the newest vintage actually present in the snapshot**, so a
 2019-only local snapshot doesn't crash under a `CENSUS_YEAR=2020` config.
 
+### 2.6 Comparison as a first-class conversation slot
+Multi-region comparison ("compare CA and TX", "CA vs TX", "which has higher…") is a deterministic
+**`GROUP BY` over a state set**, ranked descending, with a synthesized gap and ×ratio. The
+comparison set lives in the rewriter as a dedicated slot (`compare_geos`) **alongside** metric and
+geo — not as a one-off parse of the current sentence. That single design choice is what lets a
+comparison *survive a metric switch*: `compare CA & TX` → `what about income?` re-runs the
+comparison for income instead of silently collapsing to one state. Slot inheritance prioritizes
+**user** turns over assistant turns so a refusal/capability message can never hijack the next
+follow-up.
+
 ---
 
 ## 3. Trade-offs I Made Consciously
@@ -93,9 +103,9 @@ makes the swap a config flag. A small but real correctness win added late: the a
 | ✅ Handled | Unanswerable topic (religion, party) | Explicit "not in dataset" message | Broaden pattern list from real traces |
 | ✅ Handled | Wrong granularity (ZIP) | Explain CBG grain, offer state/county | ZIP→CBG crosswalk for approximate answers |
 | ✅ Handled | SQL invalid / exec error / empty | Validate + 1 self-heal retry + friendly message | Multi-step retry with richer error context |
+| ✅ Handled | Multi-region comparison ("CA vs TX", "which is higher") | Native `GROUP BY` + ranked gap/×ratio; survives metric-switch follow-ups | Comparison *across years* (vintage on each axis) |
 | ⚠️ Partial | Ambiguous geo ("the South") | Disclaim + best-effort | Interactive clarification turn instead of assuming |
-| ⚠️ Partial | Faithfulness on complex prose | Numeric grounding check | Numbers spelled as words; ratios/derived values |
-| ⚠️ Partial | Multi-hop / comparative ("CA vs TX delta") | Often two turns | Native planner for multi-entity aggregation |
+| ⚠️ Partial | Faithfulness on complex prose | Numeric grounding check; **pairwise derived gaps** allowed for comparisons | Numbers spelled as words; multi-step derived values |
 | ❌ Open | Margin-of-error reporting | Estimates only (`e` columns) | Surface `m` columns when precision matters |
 | ❌ Open | Snowflake cold-start latency | Within SLA but variable | Warehouse keep-warm / result cache on deploy |
 
@@ -113,9 +123,12 @@ I split correctness into two complementary regimes:
   expected-failure-mode) rather than brittle exact-string matching, plus a **faithfulness rate**.
   A **quality gate** turns key metrics into pass/fail thresholds for regression protection.
 
-**Current deterministic eval:** golden 10/10 (100%), degradation 8/8 (100%), faithfulness 100%,
-avg latency ~10 ms on the fast path. LLM Text-to-SQL cases are exercised separately when a Gemini
-key is present (`scripts/verify_phase5.py`).
+**Current deterministic eval:** golden 10/10 (100%), degradation 8/8 (100%), context & comparison
+19/19 (100%), faithfulness 100%, avg latency ~10 ms on the fast path. The context suite exercises
+multi-turn inheritance *and* the comparison capability across every transition (geo follow-up,
+metric switch, comparison-persists, comparison-grows, comparison-collapses, off-topic/unanswerable
+interruptions). LLM Text-to-SQL cases are exercised separately when a Gemini key is present
+(`scripts/verify_phase5.py`).
 
 ### What I'd add to the test suite with more time
 1. **recall@k retrieval eval** as a standalone metric to localize retrieval misses.

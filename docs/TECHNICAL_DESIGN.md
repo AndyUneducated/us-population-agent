@@ -85,10 +85,13 @@ Successfully connected to the Snowflake Marketplace dataset
 flowchart TD
     A[User question] --> B{1. Guardrails / intent<br/>fast-fail}
     B -- Out of scope / unsafe --> Z[Polite refusal + guidance]
-    B -- In scope --> C[2. Multi-turn context rewrite<br/>standalone question]
-    C --> D[3. Schema / metadata retrieval<br/>lexical recall of tables & columns]
+    B -- In scope --> C[2. Multi-turn context rewrite<br/>slots: metric / geo / compare_geos]
+    C --> P{Curated metric?}
+    P -- "fast path · 1 region" --> FB[3a. Deterministic SQL builder]
+    P -- "fast path · >=2 regions" --> CB[3b. Comparison builder<br/>GROUP BY + ranked gap]
+    P -- "general path" --> D[3c. Schema retrieval<br/>lexical recall of tables & columns]
     D --> E[4. Text-to-SQL generation<br/>semantic-layer constrained]
-    E --> F{5. SQL validation guardrails<br/>read-only / whitelist / LIMIT / dry-run}
+    FB & CB & E --> F{5. SQL validation guardrails<br/>read-only / whitelist / LIMIT / dry-run}
     F -- Invalid / unanswerable --> Y[Graceful degradation message]
     F -- Valid --> G[6. Execute query<br/>Snowflake / snapshot]
     G -- Empty / timeout --> Y
@@ -189,10 +192,38 @@ Two stages, following "fast-fail; correct & slow beats fast & wrong":
 
 ### 4.2 Multi-Turn Context Rewriting
 
-- Maintain conversation history (role + content + extracted entities: region / year / metric).
+- Maintain conversation history (role + content + extracted entities: region / year / metric / comparison set).
 - Rewrite follow-ups into **self-contained questions**:
   - "What about Texas?" + history "California median income" → "What is the median household income in Texas?"
-- **Slot inheritance**: region / year / metric carry across turns unless overridden.
+- **Slot inheritance**: `metric` / `geo` / `year` / `compare_geos` carry across turns unless overridden.
+- **User-turn priority**: slots are rebuilt from prior **user** messages first, with assistant
+  messages only as a fallback. This prevents a refusal/degradation reply (which enumerates
+  capability keywords like "population, income, housing…") from poisoning the next follow-up's
+  inherited metric.
+
+**Conversation slots**
+
+| Slot | Holds | Set when | Inherited when |
+| --- | --- | --- | --- |
+| `metric` | curated measure | turn names a metric/synonym | follow-up omits metric |
+| `geo` | single state/county | turn names one concrete place | follow-up omits geo |
+| `compare_geos` | ordered set of ≥2 states | turn names ≥2 states (`and` / `vs` / list) | metric-only follow-up after a comparison |
+| `year` | census vintage | explicit year mention | otherwise default vintage |
+
+**Comparison lifecycle (state transitions)**
+
+| From → To | Trigger | Effect |
+| --- | --- | --- |
+| single → comparison | "compare CA **and** TX", "CA **vs** TX", "which is higher, CA or TX" | populate `compare_geos`, run `GROUP BY` |
+| comparison → comparison (same set) | "what about income?" (metric only) | keep `compare_geos`, swap metric |
+| comparison → comparison (new set) | "what about FL and WA?" | replace `compare_geos` |
+| comparison → single | "what about Florida?" (one concrete geo) | clear `compare_geos` |
+
+> The comparison set is detected from the **raw user turn**, since the rewriter intentionally
+> collapses a question to a single standalone geo for the fast path. Comparison SQL is a
+> deterministic `GROUP BY f.STATE … ORDER BY value DESC`; the synthesizer adds the highest/lowest
+> call-out plus the absolute gap and ×ratio, and the faithfulness check whitelists pairwise
+> differences of grounded row values so the derived gap stays "grounded".
 
 ### 4.3 Semantic Layer (Semantic Catalog)
 
@@ -300,14 +331,15 @@ On failure → graceful degradation (4.7), optionally one **self-heal retry** (f
 
 - A curated set of `(question, expected)` cases covering:
   - **Happy path**: single metric, single region ("California total population").
-  - **Aggregation / ranking**: "top 5 counties by population".
+  - **Multi-region comparison / ranking**: "compare CA and TX", "CA vs TX income", "which is higher".
   - **Multi-turn follow-up**: "What about Texas?".
+  - **Comparison-aware context**: comparison persists across a metric switch, grows with new states, or collapses to a single geo.
   - **Ambiguous / under-specified**: "income in the South" (should clarify or declare default).
   - **Unanswerable**: "religion by state" (not in dataset → graceful refusal).
   - **Out of scope / unsafe**: "write code for me / today's weather" (guardrails block).
   - **Adversarial / injection**: "ignore previous instructions…" (must not be hijacked).
-- Each case tagged with **expected type**: exact numeric / SQL structure assertion / should refuse / should clarify.
-- Versioned files (e.g. `evals/golden.jsonl`, `evals/phase4_degradation.jsonl`), growing with the codebase.
+- Each case tagged with **expected type**: grounded number / `expect_region` / `expect_regions` (comparison) / should refuse / should clarify.
+- Versioned files (`evals/golden.jsonl`, `evals/phase4_degradation.jsonl`, `evals/assignment_context.jsonl`), growing with the codebase.
 
 ### 5.2 Quality Metrics ("Define What Good Means")
 
@@ -447,7 +479,8 @@ flowchart TD
 
 ### Phase 2 — Agent Core + Eval Skeleton ✅
 - [x] Guardrails (input classification + SQL validation)
-- [x] Context Rewriter (multi-turn rewrite + slot inheritance)
+- [x] Context Rewriter (multi-turn rewrite + slot inheritance; `compare_geos` comparison slot)
+- [x] Multi-region comparison capability (`GROUP BY` + ranked gap/×ratio, survives metric switch)
 - [x] Schema Retriever (fast path + lexical path)
 - [x] SQL Generator (constrained generation + self-heal retry)
 - [x] Executor (timeout + auto LIMIT)

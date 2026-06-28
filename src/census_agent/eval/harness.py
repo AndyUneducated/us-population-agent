@@ -98,6 +98,10 @@ def _evaluate_case(case: dict, resp) -> tuple[bool, str]:
         if passed and case.get("expect_region"):
             region = case["expect_region"]
             passed = region in (resp.sql or "") or region in resp.answer
+        if passed and case.get("expect_regions"):
+            haystack = (resp.sql or "") + " " + resp.answer
+            missing = [r for r in case["expect_regions"] if r not in haystack]
+            passed = not missing
         if passed and case.get("expect_county"):
             passed = case["expect_county"].lower() in resp.answer.lower()
         return passed, "has grounded number" if passed else (resp.error or resp.answer[:100])

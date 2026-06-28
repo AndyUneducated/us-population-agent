@@ -25,6 +25,8 @@ class ConversationSlots:
     metric: MetricDefinition | None = None
     geo: GeoMatch | None = None
     year: int | None = None
+    # Active multi-region comparison set (>=2 states). Empty for single-region turns.
+    compare_geos: list[GeoMatch] = field(default_factory=list)
 
 
 @dataclass
@@ -60,6 +62,7 @@ class Rewriter:
         slots = ConversationSlots()
         slots.metric = self._last_metric(users) or self._last_metric(assistants)
         slots.geo = self._last_geo(users) or self._last_geo(assistants)
+        slots.compare_geos = self._last_compare(users)
         return slots
 
     def _last_metric(self, contents: list[str]) -> MetricDefinition | None:
@@ -76,17 +79,37 @@ class Rewriter:
                 return geo_matches[0]
         return None
 
+    def _last_compare(self, contents: list[str]) -> list[GeoMatch]:
+        """Most recent user turn that named >=2 states defines the comparison set."""
+        for content in reversed(contents):
+            states = self.geo_resolver.resolve_states(content)
+            if len(states) >= 2:
+                return states
+        return []
+
     def _apply_query(self, query: str, slots: ConversationSlots) -> ConversationSlots:
         metric = match_metric(query)
         if metric:
             slots.metric = metric
 
+        current_states = self.geo_resolver.resolve_states(query)
         geo_matches = self.geo_resolver.resolve(query)
-        if geo_matches:
+
+        if len(current_states) >= 2:
+            # This turn names a fresh comparison set (e.g. "compare CA and TX",
+            # "what about FL and WA?"). It overrides any prior comparison.
+            slots.compare_geos = current_states
+            slots.geo = current_states[0]
+        elif geo_matches:
+            # A single concrete geo this turn collapses back to single-region mode.
             slots.geo = geo_matches[0]
+            slots.compare_geos = []
         elif self._is_followup(query):
+            # Metric-only follow-up ("what about income?"): keep the inherited
+            # comparison set (if any) and geo so context survives.
             if extracted := self._extract_followup_geo(query):
                 slots.geo = extracted
+                slots.compare_geos = []
         return slots
 
     def _extract_followup_geo(self, query: str) -> GeoMatch | None:

@@ -216,9 +216,10 @@ class CensusAgent:
 
         sql: str | None = None
         if analysis.metric:
-            # Detect multi-state comparisons from the original question: the
-            # rewriter collapses multi-geo queries to a single standalone geo.
-            compare_geos = self._catalog.geo_resolver.resolve_states(question)
+            # The rewriter tracks the active comparison set as a conversation slot,
+            # so multi-state comparisons survive metric-switch follow-ups (e.g.
+            # "compare CA and TX" -> "what about income?").
+            compare_geos = self._rewriter.slots.compare_geos
             if len(compare_geos) >= 2:
                 sql = build_comparison_sql(analysis.metric, compare_geos, self._settings)
                 trace.record(

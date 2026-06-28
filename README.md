@@ -67,8 +67,10 @@ flowchart TD
     B -- out of scope / unsafe / injection --> Z[Polite refusal + capabilities]
     B -- in scope --> C[Multi-turn rewrite<br/>self-contained question]
     C --> D{Fast path?<br/>curated metric}
-    D -- yes --> E1[Deterministic SQL builder]
+    D -- "yes · 1 region" --> E1[Deterministic SQL builder]
+    D -- "yes · >=2 regions" --> E3[Comparison SQL builder<br/>GROUP BY + ranked gap]
     D -- no --> E2[Lexical schema retrieval<br/>+ LLM Text-to-SQL + self-heal]
+    E3 --> F
     E1 --> F{SQL validation<br/>read-only / whitelist / LIMIT}
     E2 --> F
     F -- invalid --> Y[Graceful degradation message]
@@ -131,6 +133,7 @@ dataset + degradation suite and emits per-case results and aggregate metrics
 | --- | --- | --- | --- | --- |
 | **Golden** (`evals/golden.jsonl`) | 10 | **100%** | **100%** | ~10 ms |
 | **Degradation** (`evals/phase4_degradation.jsonl`) | 8 | **100%** | — | ~6 ms |
+| **Context & comparison** (`evals/assignment_context.jsonl`) | 19 | **100%** | **100%** | ~12 ms |
 
 > Deterministic fast-path metrics avoid LLM/warehouse cost and run on every commit.
 > LLM Text-to-SQL cases (`requires_llm`) run separately via `scripts/verify_phase5.py` when a
@@ -167,6 +170,8 @@ dataset + degradation suite and emits per-case results and aggregate metrics
 | Single metric | "Population of California" | ⚡ Fast path (no LLM) |
 | Median / ratio | "Homeownership rate in Florida" | ⚡ Fast path |
 | County | "Population of Santa Clara County" | ⚡ Fast path + FIPS join |
+| **Multi-state comparison** | "Compare population of California and Texas" | ⚡ Comparison path (`GROUP BY` + ranked gap) |
+| **Ranking / `vs`** | "Which has higher income, CA or TX?" · "CA vs TX income" | ⚡ Comparison path |
 | Multi-turn follow-up | "What about Texas?" | 🔁 Rewriter slot inheritance |
 | Open-ended field | "households with no vehicle" | 🧠 Lexical retrieval + LLM SQL |
 | Unanswerable | "religion by state" | 🛡️ Graceful "not in dataset" |
@@ -174,6 +179,70 @@ dataset + degradation suite and emits per-case results and aggregate metrics
 
 **Curated metrics (fast path):** total population · median household income · median age ·
 owner-occupied housing rate · unemployment rate · bachelor's degree rate.
+
+---
+
+## 🗣️ Conversation Intelligence
+
+The agent reasons along **two independent axes** — *what* you ask (analytical capability) and
+*how the question depends on prior turns* (context). They compose freely: any capability can be
+reached through any context pattern.
+
+### Axis 1 — Analytical capability
+
+| Capability | Trigger phrasing | Output shape |
+| --- | --- | --- |
+| Single value | "population of California" | one region, one metric |
+| 2-way comparison | "compare CA **and** TX", "CA **vs** TX" | both regions, ranked, **gap + ×ratio** |
+| N-way comparison | "compare median age in CA, TX **and** FL" | all regions, ranked desc |
+| Ranking | "**which** has higher income, CA or TX?" | comparison + highest/lowest call-out |
+| County drill-down | "Santa Clara County", "Miami-Dade County" | FIPS state+county join |
+
+### Axis 2 — Context dependence
+
+| Context pattern | Example chain | Inheritance rule |
+| --- | --- | --- |
+| Geo follow-up | "…CA?" → "What about Texas?" | keep **metric**, swap **geo** |
+| Metric switch | "population of CA?" → "What about income?" | keep **geo**, swap **metric** |
+| Comparison persists | "compare CA & TX" → "What about income?" | keep **comparison set**, swap metric |
+| Comparison grows | "compare CA & TX" → "What about FL and WA?" | replace with **new comparison set** |
+| Comparison collapses | "compare CA & TX" → "What about Florida?" | single concrete geo **exits** comparison |
+| Off-topic interrupt | "…TX?" → "weather?" (refused) → "What about FL?" | refusal **does not** pollute slots |
+| Unanswerable interrupt | "income in CA?" → "religion in TX?" → "What about TX?" | inherit last **valid** metric |
+
+### Slot-inheritance flow (per turn)
+
+```mermaid
+flowchart TD
+    Q[New user turn] --> H[Rebuild slots from history<br/>USER messages first, assistant fallback]
+    H --> M{Current turn names<br/>a metric?}
+    M -- yes --> SM[Set metric] --> G
+    M -- no --> G{Current turn names geo?}
+    G -- ">=2 states" --> CMP[compare_geos = states<br/>comparison mode]
+    G -- "1 concrete geo" --> SG[geo = state/county<br/>clear comparison]
+    G -- "none, is follow-up" --> INH[Inherit geo + comparison set]
+    G -- "none, not follow-up" --> KEEP[Keep inherited geo]
+    CMP & SG & INH & KEEP --> R[Rewrite to standalone question]
+```
+
+> **Design note:** the comparison set is a first-class conversation slot (`compare_geos`), so a
+> comparison survives a metric switch — `compare CA & TX` → `what about income?` re-runs the
+> comparison for income, not a single state. Inheritance prioritizes **user** messages so that a
+> refusal/degradation reply (which lists capability keywords like "population, income, housing")
+> can never hijack the next follow-up.
+
+### Worked example — a 4-turn comparison chain
+
+| Turn | User says | Metric | Regions |
+| --- | --- | --- | --- |
+| 1 | Compare population of California and Texas | Total Population | CA, TX |
+| 2 | What about median household income? | Median HH Income | CA, TX |
+| 3 | What about Florida and Washington? | Median HH Income | FL, WA |
+| 4 | What about California? | Median HH Income | CA |
+
+Every transition above is covered by an automated regression test
+(`tests/test_assignment.py::TestComparisonCapability`) and an eval case
+(`evals/assignment_context.jsonl`).
 
 ---
 
@@ -251,7 +320,7 @@ src/census_agent/
 ├── observability/          # trace store (traces.jsonl)
 ├── llm/chat.py             # Google Gemini REST client (retries, SSL)
 └── config.py               # env/secrets, year auto-resolution
-evals/                      # golden.jsonl + phase4_degradation.jsonl
+evals/                      # golden + phase4_degradation + assignment_context (multi-turn & comparison)
 scripts/                    # ETL, index build, verify_phaseN, connectivity probes
 tests/                      # pytest suite (unit + e2e markers)
 docs/                       # ASSIGNMENT, TECHNICAL_DESIGN, DEPLOY_STREAMLIT

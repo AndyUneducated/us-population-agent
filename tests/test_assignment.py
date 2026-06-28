@@ -193,6 +193,88 @@ class TestAssignmentProductionQuality:
         assert resp.rows
 
 
+class TestComparisonCapability:
+    """Multi-region comparison capability and its survival across context."""
+
+    def test_two_state_comparison_direct(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            resp = agent.ask("Compare population between California and Texas")
+        regions = {r["region"] for r in resp.rows}
+        assert {"CA", "TX"} <= regions
+        assert resp.faithful
+
+    def test_three_state_comparison(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            resp = agent.ask("Compare median age in California, Texas, and Florida")
+        regions = {r["region"] for r in resp.rows}
+        assert {"CA", "TX", "FL"} <= regions
+
+    def test_vs_phrasing_triggers_comparison(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            resp = agent.ask("California vs Texas median household income")
+        regions = {r["region"] for r in resp.rows}
+        assert {"CA", "TX"} <= regions
+
+    def test_ranking_which_triggers_comparison(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            resp = agent.ask("Which has higher population, California or Texas?")
+        regions = {r["region"] for r in resp.rows}
+        assert {"CA", "TX"} <= regions
+
+    def test_comparison_survives_metric_switch(self, agent_settings: Settings) -> None:
+        """Compare CA & TX, then switch metric: both states must persist."""
+        with CensusAgent(settings=agent_settings) as agent:
+            first = agent.ask("Compare population between California and Texas")
+            history = [
+                Message("user", "Compare population between California and Texas"),
+                Message("assistant", first.answer),
+            ]
+            second = agent.ask("What about median household income?", history=history)
+        regions = {r["region"] for r in second.rows}
+        assert {"CA", "TX"} <= regions
+        assert all(r["metric"] == "Median Household Income" for r in second.rows)
+
+    def test_comparison_followup_adds_new_states(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            first = agent.ask("Compare population between California and Texas")
+            history = [
+                Message("user", "Compare population between California and Texas"),
+                Message("assistant", first.answer),
+            ]
+            second = agent.ask("What about Florida and Washington?", history=history)
+        regions = {r["region"] for r in second.rows}
+        assert {"FL", "WA"} <= regions
+
+    def test_comparison_collapses_to_single_geo(self, agent_settings: Settings) -> None:
+        """A single concrete geo follow-up exits comparison mode."""
+        with CensusAgent(settings=agent_settings) as agent:
+            first = agent.ask("Compare population between California and Texas")
+            history = [
+                Message("user", "Compare population between California and Texas"),
+                Message("assistant", first.answer),
+            ]
+            second = agent.ask("What about Florida?", history=history)
+        assert len(second.rows) == 1
+        assert second.rows[0]["region"] == "FL"
+
+    def test_long_comparison_chain(self, agent_settings: Settings) -> None:
+        """compare -> switch metric -> add states -> collapse to single."""
+        steps = [
+            ("Compare population between California and Texas", {"CA", "TX"}, "Total Population"),
+            ("What about median household income?", {"CA", "TX"}, "Median Household Income"),
+            ("What about Florida and Washington?", {"FL", "WA"}, "Median Household Income"),
+            ("What about California?", {"CA"}, "Median Household Income"),
+        ]
+        with CensusAgent(settings=agent_settings) as agent:
+            history: list[Message] = []
+            for question, expected_regions, expected_metric in steps:
+                resp = agent.ask(question, history=history)
+                regions = {r["region"] for r in resp.rows}
+                assert expected_regions <= regions, f"{question}: {regions}"
+                assert all(r["metric"] == expected_metric for r in resp.rows), question
+                history += [Message("user", question), Message("assistant", resp.answer)]
+
+
 class TestGeoResolverQuality:
     def test_new_york_is_state_not_county(self, agent_settings: Settings) -> None:
         from census_agent.data.gateway import get_data_gateway
