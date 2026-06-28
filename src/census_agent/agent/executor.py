@@ -1,8 +1,9 @@
-"""SQL execution with timeout."""
+"""SQL execution with optional timeout (Streamlit-safe)."""
 
 from __future__ import annotations
 
 import signal
+import threading
 from contextlib import contextmanager
 from typing import Any, Iterator
 
@@ -14,21 +15,30 @@ class QueryTimeoutError(TimeoutError):
     pass
 
 
+def _signal_timeout_available() -> bool:
+    """SIGALRM only works on the main thread (breaks under Streamlit)."""
+    return (
+        hasattr(signal, "SIGALRM")
+        and threading.current_thread() is threading.main_thread()
+    )
+
+
 @contextmanager
 def _time_limit(seconds: int) -> Iterator[None]:
+    if not _signal_timeout_available():
+        yield
+        return
+
     def handler(signum, frame):  # noqa: ARG001
         raise QueryTimeoutError(f"Query exceeded {seconds}s timeout")
 
-    if hasattr(signal, "SIGALRM"):
-        old = signal.signal(signal.SIGALRM, handler)
-        signal.alarm(seconds)
-        try:
-            yield
-        finally:
-            signal.alarm(0)
-            signal.signal(signal.SIGALRM, old)
-    else:
+    old = signal.signal(signal.SIGALRM, handler)
+    signal.alarm(seconds)
+    try:
         yield
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old)
 
 
 class QueryExecutor:
