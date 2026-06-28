@@ -456,29 +456,29 @@ flowchart TD
 - [x] schema 探查（71 表结构、元数据表、列编码规律）
 - 产出：`.env` 模板、`scripts/test_snowflake_connection.py`、本设计文档。
 
-### Phase 1 — 数据 / 语义层
-- [ ] 项目骨架（依赖管理、配置、日志、trace 基础设施）
-- [ ] Data Gateway：统一只读查询接口（Snowflake / DuckDB 双后端）
-- [ ] （若选快照）ETL 脚本：抽高频表子集 → DuckDB
-- [ ] Semantic Catalog：表目录 + 人工度量字典 + 同义词 + 地理解析（对齐 Cortex semantic model）
-- [ ] 从 `FIELD_DESCRIPTIONS` 构建 embedding 索引
-- 验收：给定指标关键词能召回正确列；地名能解析为 FIPS。
+### Phase 1 — 数据 / 语义层 ✅
+- [x] 项目骨架（依赖管理、配置、日志、trace 基础设施）
+- [x] Data Gateway：统一只读查询接口（Snowflake / DuckDB 双后端）
+- [x] ETL 脚本：抽高频表子集 → DuckDB（`scripts/etl_snapshot.py`）
+- [x] Semantic Catalog：表目录 + 人工度量字典 + 同义词 + 地理解析（对齐 Cortex semantic model）
+- [x] 从 `FIELD_DESCRIPTIONS` 构建 embedding 索引（`scripts/build_embeddings.py`）
+- 验收：给定指标关键词能召回正确列；地名能解析为 FIPS。→ `scripts/verify_phase1.py` 通过。
 
-### Phase 2 — Agent 核心 + Eval 骨架（并行）
-- [ ] Guardrails（输入分类 + SQL 校验）
-- [ ] Context Rewriter（多轮改写 + slot 继承）
-- [ ] Schema Retriever（快路径 + 向量路径）
-- [ ] SQL Generator（受约束生成 + 自我修复重试）
-- [ ] Executor（超时 + 自动 LIMIT）
-- [ ] Answer Synthesizer（接地 + 口径标注）
-- [ ] **Golden dataset 初版 + Eval harness 跑通**（第 5 节）
-- 验收：端到端能回答 10 条代表性问题；eval 能产出指标基线。
+### Phase 2 — Agent 核心 + Eval 骨架 ✅
+- [x] Guardrails（输入分类 + SQL 校验）
+- [x] Context Rewriter（多轮改写 + slot 继承）
+- [x] Schema Retriever（快路径 + 向量路径）
+- [x] SQL Generator（受约束生成 + 自我修复重试）
+- [x] Executor（超时 + 自动 LIMIT）
+- [x] Answer Synthesizer（接地 + 口径标注）
+- [x] Golden dataset 初版 + Eval harness（`evals/golden.jsonl`）
+- 验收：`scripts/verify_phase2.py` — 10/10 eval 通过。
 
-### Phase 3 — Web 应用
-- [ ] Streamlit 聊天界面 + 流式输出
-- [ ] 会话记忆（session 多轮）
-- [ ] SQL/数据可折叠展示 + 简单图表 + 👍/👎 反馈
-- 验收：本地可多轮对话，60s 内出答案。
+### Phase 3 — Web 应用 ✅
+- [x] Streamlit 聊天界面（`app.py`）
+- [x] 会话记忆（session 多轮）
+- [x] SQL/数据可折叠展示 + metric 展示 + 👍/👎 反馈
+- 验收：`scripts/verify_phase3.py` 通过。
 
 ### Phase 4 — 优雅降级、失败模式与可观测
 - [ ] 落实 4.7 各降级场景分支

@@ -1,0 +1,10 @@
+{"id": "pop_ca", "question": "What is the total population of California?", "expect_type": "has_number", "expect_region": "CA"}
+{"id": "income_tx", "question": "What is the median household income in Texas?", "expect_type": "has_number", "expect_region": "TX"}
+{"id": "age_us", "question": "What is the median age in the United States?", "expect_type": "has_number"}
+{"id": "unemployment_ca", "question": "What is the unemployment rate in California?", "expect_type": "has_number", "expect_region": "CA"}
+{"id": "homeownership_fl", "question": "What is the homeownership rate in Florida?", "expect_type": "has_number", "expect_region": "FL"}
+{"id": "pop_santa_clara", "question": "Population of Santa Clara County", "expect_type": "has_number", "expect_county": "Santa Clara"}
+{"id": "off_topic_weather", "question": "What is the weather today?", "expect_type": "refuse"}
+{"id": "off_topic_poem", "question": "Write me a poem about cats", "expect_type": "refuse"}
+{"id": "unanswerable_religion", "question": "What is the religious affiliation breakdown by state?", "expect_type": "graceful_no_data"}
+{"id": "followup_tx", "question": "What about Texas?", "history": [{"role": "user", "content": "What is the population of California?"}, {"role": "assistant", "content": "California population is 39 million."}], "expect_type": "has_number", "expect_region": "TX"}
