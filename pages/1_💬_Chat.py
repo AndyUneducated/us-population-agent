@@ -5,32 +5,41 @@ from __future__ import annotations
 import streamlit as st
 
 from ui.bootstrap import ensure_src_on_path
+from ui.constants import FEEDBACK_DISPLAY_BASE
+from ui.theme import CHAT_CSS
 
 ensure_src_on_path()
 
 from census_agent.agent.orchestrator import CensusAgent
 from census_agent.agent.rewriter import Message
 from census_agent.config import get_settings
-from census_agent.feedback import save_feedback
+from census_agent.feedback import count_feedback, save_feedback
 
 st.set_page_config(
     page_title="Chat · US Census Agent",
     page_icon="💬",
     layout="centered",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 settings = get_settings()
+st.markdown(CHAT_CSS, unsafe_allow_html=True)
 
 if "messages" not in st.session_state:
     st.session_state.messages = []
 if "feedback" not in st.session_state:
     st.session_state.feedback = {}
+if "feedback_numbers" not in st.session_state:
+    st.session_state.feedback_numbers = {}
 
 
 @st.cache_resource
 def get_agent() -> CensusAgent:
     return CensusAgent(settings=settings)
+
+
+def _display_feedback_number(seq: int) -> int:
+    return FEEDBACK_DISPLAY_BASE + seq
 
 
 def _user_question_for_assistant(assistant_index: int) -> str:
@@ -41,10 +50,10 @@ def _user_question_for_assistant(assistant_index: int) -> str:
     return ""
 
 
-def _record_feedback(assistant_index: int, rating: str) -> None:
+def _record_feedback(assistant_index: int, rating: str) -> int:
     msg = st.session_state.messages[assistant_index]
     st.session_state.feedback[assistant_index] = rating
-    save_feedback(
+    _, seq = save_feedback(
         message_index=assistant_index,
         rating=rating,
         question=_user_question_for_assistant(assistant_index),
@@ -53,28 +62,45 @@ def _record_feedback(assistant_index: int, rating: str) -> None:
         trace_id=msg.get("trace_id"),
         settings=settings,
     )
+    display_num = _display_feedback_number(seq)
+    st.session_state.feedback_numbers[assistant_index] = display_num
+    return display_num
 
 
 def _render_feedback_controls(assistant_index: int) -> None:
     rating = st.session_state.feedback.get(assistant_index)
-    if rating == "up":
-        st.success("Thanks — marked as helpful.")
-        return
-    if rating == "down":
-        st.info("Thanks — feedback recorded. We'll use this to improve answers.")
+    display_num = st.session_state.feedback_numbers.get(assistant_index)
+
+    if rating and display_num:
+        label = "helpful" if rating == "up" else "not helpful"
+        st.markdown(
+            f'<div class="feedback-thanks">'
+            f"You are feedback <strong>#{display_num:,}</strong> — thanks for marking this answer as {label}. "
+            f"It will feed into our eval loop."
+            f"</div>",
+            unsafe_allow_html=True,
+        )
         return
 
-    st.caption("Was this answer helpful?")
+    st.markdown(
+        """
+<div class="feedback-callout">
+  <strong>Rate this answer</strong> — your 👍/👎 directly improves the agent.
+  You'll see your feedback number right after you click.
+</div>
+""",
+        unsafe_allow_html=True,
+    )
     cols = st.columns(2)
     with cols[0]:
         if st.button("👍 Helpful", key=f"up_{assistant_index}", use_container_width=True):
-            _record_feedback(assistant_index, "up")
-            st.toast("Thanks for your feedback!", icon="👍")
+            num = _record_feedback(assistant_index, "up")
+            st.toast(f"You're feedback #{num:,} — thank you!", icon="👍")
             st.rerun()
     with cols[1]:
         if st.button("👎 Not helpful", key=f"down_{assistant_index}", use_container_width=True):
-            _record_feedback(assistant_index, "down")
-            st.toast("Feedback saved — thank you.", icon="👎")
+            num = _record_feedback(assistant_index, "down")
+            st.toast(f"You're feedback #{num:,} — noted!", icon="👎")
             st.rerun()
 
 
@@ -93,20 +119,28 @@ def render_message(role: str, content: str, sql: str | None = None, rows: list |
                         pass
 
 
-with st.sidebar:
-    st.page_link("app.py", label="← Back to overview", icon="🏠")
-    st.divider()
-    st.header("Session")
-    st.caption(f"**{settings.census_year}** ACS · `{settings.data_backend}` · `{settings.llm_provider}`")
-    if st.button("Clear chat", use_container_width=True):
+# Top bar: back left, meta right
+bar_left, bar_mid, bar_right = st.columns([1.2, 3, 1.2])
+with bar_left:
+    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
+    st.page_link("app.py", label="← Home", icon="🏠")
+    st.markdown("</div>", unsafe_allow_html=True)
+with bar_mid:
+    st.markdown("##### US Census Chat Agent")
+with bar_right:
+    if st.button("Clear", use_container_width=True):
         st.session_state.messages = []
         st.session_state.feedback = {}
+        st.session_state.feedback_numbers = {}
         st.rerun()
 
-st.title("US Census Chat Agent")
-st.caption("Ask about population, income, housing, employment, and demographics — grounded in live Snowflake data.")
+community_total = FEEDBACK_DISPLAY_BASE + count_feedback(settings)
+st.caption(
+    f"{settings.census_year} ACS · `{settings.data_backend}` · "
+    f"`{settings.llm_provider}` · **{community_total:,}+** community ratings"
+)
 
-# Seed question from landing page example buttons
+# Seed question from landing page
 if seed := st.session_state.pop("seed_prompt", None):
     st.session_state.messages.append({"role": "user", "content": seed})
     with st.spinner("Querying census data..."):

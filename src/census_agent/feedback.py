@@ -17,6 +17,13 @@ def feedback_path(settings: Settings | None = None) -> Path:
     return path
 
 
+def count_feedback(settings: Settings | None = None) -> int:
+    path = feedback_path(settings)
+    if not path.exists():
+        return 0
+    return sum(1 for line in path.read_text(encoding="utf-8").splitlines() if line.strip())
+
+
 def save_feedback(
     *,
     message_index: int,
@@ -26,7 +33,8 @@ def save_feedback(
     sql: str | None = None,
     trace_id: str | None = None,
     settings: Settings | None = None,
-) -> Path:
+) -> tuple[Path, int]:
+    """Append feedback and return (path, 1-based sequence number in the log file)."""
     record: dict[str, Any] = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "message_index": message_index,
@@ -39,4 +47,4 @@ def save_feedback(
     path = feedback_path(settings)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(record, ensure_ascii=False) + "\n")
-    return path
+    return path, count_feedback(settings)

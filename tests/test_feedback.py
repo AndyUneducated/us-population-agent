@@ -15,7 +15,7 @@ def test_save_feedback_appends_jsonl(tmp_path) -> None:
         duckdb_path=tmp_path / "x.duckdb",
         census_year=2019,
     )
-    path = save_feedback(
+    path, seq = save_feedback(
         message_index=1,
         rating="up",
         question="population of CA?",
@@ -25,6 +25,7 @@ def test_save_feedback_appends_jsonl(tmp_path) -> None:
         settings=settings,
     )
     assert path == feedback_path(settings)
+    assert seq == 1
     lines = path.read_text(encoding="utf-8").strip().splitlines()
     assert len(lines) == 1
     row = json.loads(lines[0])
