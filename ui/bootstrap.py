@@ -16,3 +16,10 @@ def ensure_src_on_path() -> Path:
     if src_str not in sys.path:
         sys.path.insert(0, src_str)
     return ROOT
+
+
+def configure_streamlit_client() -> None:
+    """Disable default multipage sidebar nav before first paint (avoids flash)."""
+    import streamlit as st
+
+    st.set_option("client.showSidebarNavigation", False)

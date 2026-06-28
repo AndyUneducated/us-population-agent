@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.bootstrap import ensure_src_on_path
+from ui.bootstrap import configure_streamlit_client, ensure_src_on_path
 from ui.constants import FEEDBACK_DISPLAY_BASE
 from ui.theme import CHAT_CSS
 
+configure_streamlit_client()
 ensure_src_on_path()
 
 from census_agent.agent.orchestrator import CensusAgent
@@ -18,7 +19,7 @@ from census_agent.feedback import count_feedback, save_feedback
 st.set_page_config(
     page_title="Chat · US Census Agent",
     page_icon="💬",
-    layout="centered",
+    layout="wide",
     initial_sidebar_state="collapsed",
 )
 
@@ -177,7 +178,6 @@ if seed := st.session_state.pop("seed_prompt", None):
             "trace_id": resp.trace.trace_id if resp.trace else None,
         }
     )
-    st.rerun()
 
 if not st.session_state.messages:
     st.info("Try: *What is the total population of California?* then follow up with *What about Texas?*")

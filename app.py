@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.bootstrap import ensure_src_on_path
+from ui.bootstrap import configure_streamlit_client, ensure_src_on_path
 from ui.constants import FEEDBACK_DISPLAY_BASE
 from ui.theme import LANDING_CSS
 
+configure_streamlit_client()
 ensure_src_on_path()
 
 from census_agent.config import get_settings

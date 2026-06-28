@@ -75,4 +75,4 @@ streamlit run app.py
 2. `What about Texas?` (multi-turn)
 3. `What is the weather today?` (should refuse politely)
 
-Sidebar should show `Backend: snowflake`, `LLM: gemini`, and data vintage **2020**.
+The chat page caption should show data vintage **2020**, `snowflake` backend, and `gemini` LLM provider (sidebar navigation is hidden by design).
