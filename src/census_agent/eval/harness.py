@@ -93,10 +93,6 @@ def _evaluate_case(case: dict, resp) -> tuple[bool, str]:
             _has_number(resp.answer) or "ambiguous" in resp.answer.lower()
         ) and not resp.refused
         return passed, "number or disclaimer" if passed else resp.answer[:100]
-        passed = (
-            _has_number(resp.answer) or "ambiguous" in resp.answer.lower()
-        ) and not resp.refused
-        return passed, "number or disclaimer" if passed else resp.answer[:100]
     if expect == "has_number":
         passed = _has_number(resp.answer) and not resp.refused and resp.error is None
         if passed and case.get("expect_region"):

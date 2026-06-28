@@ -23,7 +23,7 @@ class FieldInfo:
 
 @dataclass
 class CatalogMatch:
-    source: str  # metric_fast_path | vector_retrieval
+    source: str  # metric_fast_path | lexical_retrieval
     metric: MetricDefinition | None
     fields: list[FieldInfo]
     geo: list[GeoMatch]
@@ -133,7 +133,7 @@ class SemanticCatalog:
                 geo=geo,
             )
         return CatalogMatch(
-            source="vector_retrieval",
+            source="lexical_retrieval",
             metric=None,
             fields=[],
             geo=geo,

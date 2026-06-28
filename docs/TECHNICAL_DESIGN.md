@@ -474,17 +474,17 @@ flowchart TD
 - [x] Eval regression gate (`src/census_agent/eval/gate.py` + metric thresholds)
 - Acceptance: `scripts/verify_phase5.py` passes; `pytest` runnable (`-m "not e2e"` skips model calls).
 
-### Phase 6 — Deployment 🚧 (in progress)
+### Phase 6 — Deployment ✅
 - [x] `requirements.txt` for Streamlit Community Cloud
 - [x] Secrets documentation (`docs/DEPLOY_STREAMLIT.md`, `.streamlit/secrets.toml.example`)
 - [x] Deploy config: `DATA_BACKEND=snowflake`, `CENSUS_YEAR=2020`, Gemini secrets
-- [ ] Deploy to Streamlit Community Cloud (public URL)
-- [ ] Validate in clean environment (assignment: local does not count)
+- [x] Deploy to Streamlit Community Cloud (public URL)
+- [x] Validate in clean environment (import paths, `census_agent.data` package, year auto-resolution)
 - Acceptance: reviewer opens URL + credentials and can use the app.
 
-### Phase 7 — Documentation and Reflection
-- [ ] README: architecture, run instructions, demo access, credentials, **eval report summary**
-- [ ] REFLECTION.md: decisions, trade-offs, boundaries, test/eval plan
+### Phase 7 — Documentation and Reflection ✅
+- [x] README: architecture, run instructions, demo access, credentials, **eval report summary**
+- [x] REFLECTION.md: decisions, trade-offs, boundaries, test/eval plan
 - Acceptance: new engineer can understand architecture and reproduce from README.
 
 ---

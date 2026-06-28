@@ -60,9 +60,9 @@ def main() -> int:
     conn.close()
 
     if any_ok:
-        print("\n=> Cortex is AVAILABLE. Set LLM_PROVIDER=cortex")
+        print("\n=> Cortex is AVAILABLE on this account (paid). Documented as future migration path.")
         return 0
-    print("\n=> Cortex NOT available (likely trial account). Use LLM_PROVIDER=openai fallback.")
+    print("\n=> Cortex NOT available (trial account, error 399258). Using LLM_PROVIDER=gemini.")
     return 1
 
 
