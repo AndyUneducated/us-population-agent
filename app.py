@@ -37,43 +37,37 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# Hero
 st.markdown(
     """
 <div class="hero-wrap">
   <div class="hero-badge">Snowflake Applied AI · Production Demo</div>
   <h1 class="hero-title">Ask America anything.<br><span>Get numbers, not guesses.</span></h1>
-  <p class="hero-sub">
-    A production-grade census agent over <strong>220,000+</strong> block groups,
-    live Snowflake Marketplace data, and a full text-to-SQL pipeline with guardrails,
-    faithfulness checks, and eval regression gates.
-  </p>
+  <p class="hero-sub">Live Census data · Snowflake SQL · Eval-driven AI</p>
 </div>
 """,
     unsafe_allow_html=True,
 )
 
 # Centered primary CTA
-_, cta_col, _ = st.columns([1, 2, 1])
+_, cta_col, _ = st.columns([1.25, 1.5, 1.25])
 with cta_col:
-    st.markdown('<div class="cta-center-block">', unsafe_allow_html=True)
+    st.markdown('<div class="primary-cta-note">Start with a real census question</div>', unsafe_allow_html=True)
     st.page_link(
         "pages/1_💬_Chat.py",
-        label="💬  Start chatting — try it live",
+        label="Start chatting",
+        icon="💬",
         use_container_width=True,
     )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 # Community feedback highlight
 st.markdown(
     f"""
-<div class="feedback-banner">
-  <div class="fb-count">{feedback_total:,}+</div>
-  <div class="fb-text">
-    <strong>Community ratings collected</strong><br>
-    Every 👍/👎 in chat shapes our eval dataset. Try a question, then rate the answer —
-    you'll see your place in the feedback queue.
+<div class="feedback-hero">
+  <div>
+    <div class="fb-kicker">Human feedback loop</div>
+    <div class="fb-title">{feedback_total:,}+ ratings</div>
   </div>
+  <div class="fb-copy">Rate one answer. See your feedback number instantly.</div>
 </div>
 """,
     unsafe_allow_html=True,
@@ -111,6 +105,41 @@ st.markdown(
 """,
     unsafe_allow_html=True,
 )
+
+st.markdown('<p class="section-title">Example questions — click to launch</p>', unsafe_allow_html=True)
+example_items = [
+    (
+        "State comparison",
+        "Compare population between California and Texas, then explain the difference.",
+    ),
+    (
+        "Economic signal",
+        "What is the median household income in New York, and how should I interpret it?",
+    ),
+    (
+        "Labor market",
+        "What is the unemployment rate in Florida? Show the SQL behind it.",
+    ),
+    (
+        "Follow-up ready",
+        "Start with California population, then ask: what about Texas?",
+    ),
+]
+example_cols = st.columns(4)
+for col, (title, prompt) in zip(example_cols, example_items):
+    with col:
+        st.markdown(
+            f"""
+<div class="example-card">
+  <div class="example-title">{title}</div>
+  <div class="example-copy">{prompt}</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        if st.button("Ask this", key=f"ex_{title}", use_container_width=True):
+            st.session_state["seed_prompt"] = prompt
+            st.switch_page("pages/1_💬_Chat.py")
 
 st.markdown('<p class="section-title">Why this stands out</p>', unsafe_allow_html=True)
 f1, f2, f3 = st.columns(3)
@@ -151,44 +180,16 @@ with f3:
 st.markdown('<p class="section-title">The pipeline</p>', unsafe_allow_html=True)
 st.markdown(
     """
-<div class="pipeline-box">
-<span class="step">Question</span> <span class="arrow">→</span>
-<span class="step">Guardrails</span> <span class="arrow">→</span>
-<span class="step">Context rewrite</span> <span class="arrow">→</span>
-<span class="step">Schema retrieval</span> <span class="arrow">→</span>
-<span class="step">Text-to-SQL</span> <span class="arrow">→</span>
-<span class="step">SQL validator</span> <span class="arrow">→</span>
-<span class="step">Snowflake execute</span> <span class="arrow">→</span>
-<span class="step">Grounded answer</span> <span class="arrow">→</span>
-<span class="step">Your feedback</span>
+<div class="pipeline-grid">
+  <div class="pipeline-card"><span>01</span><strong>Understand</strong><p>Guardrails + context rewrite.</p></div>
+  <div class="pipeline-card"><span>02</span><strong>Plan SQL</strong><p>Metric routing + schema retrieval.</p></div>
+  <div class="pipeline-card"><span>03</span><strong>Query</strong><p>Read-only Snowflake execution.</p></div>
+  <div class="pipeline-card"><span>04</span><strong>Ground</strong><p>Answer only from result rows.</p></div>
+  <div class="pipeline-card"><span>05</span><strong>Improve</strong><p>Feedback flows into evals.</p></div>
 </div>
 """,
     unsafe_allow_html=True,
 )
-
-st.markdown('<p class="section-title">Example questions — click to try</p>', unsafe_allow_html=True)
-examples = st.columns(4)
-prompts = [
-    "Population of California?",
-    "Median income in Texas?",
-    "Unemployment rate in Florida?",
-    "Median age in the United States?",
-]
-for col, prompt in zip(examples, prompts):
-    with col:
-        if st.button(prompt, key=f"ex_{prompt[:20]}", use_container_width=True):
-            st.session_state["seed_prompt"] = prompt
-            st.switch_page("pages/1_💬_Chat.py")
-
-_, cta2, _ = st.columns([1, 2, 1])
-with cta2:
-    st.markdown('<div class="cta-center-block">', unsafe_allow_html=True)
-    st.page_link(
-        "pages/1_💬_Chat.py",
-        label=f"Explore {settings.census_year} ACS data →",
-        use_container_width=True,
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
 
 st.markdown(
     """
