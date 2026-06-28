@@ -49,15 +49,16 @@ st.markdown(
 )
 
 # Centered primary CTA
-_, cta_col, _ = st.columns([1.25, 1.5, 1.25])
+_, cta_col, _ = st.columns([1, 1.6, 1])
 with cta_col:
     st.markdown('<div class="primary-cta-note">Start with a real census question</div>', unsafe_allow_html=True)
-    st.page_link(
-        "pages/1_💬_Chat.py",
-        label="Start chatting",
-        icon="💬",
-        use_container_width=True,
-    )
+    with st.container(key="bigcta"):
+        st.page_link(
+            "pages/1_💬_Chat.py",
+            label="Start chatting",
+            icon="💬",
+            use_container_width=True,
+        )
 
 # Community feedback highlight
 st.markdown(
@@ -78,10 +79,6 @@ st.markdown(
     f"""
 <div class="metric-grid">
   <div class="metric-card">
-    <div class="metric-value accent">{feedback_total:,}</div>
-    <div class="metric-label">User feedback signals</div>
-  </div>
-  <div class="metric-card">
     <div class="metric-value accent">220K+</div>
     <div class="metric-label">Census block groups</div>
   </div>
@@ -92,10 +89,6 @@ st.markdown(
   <div class="metric-card">
     <div class="metric-value">98.7%</div>
     <div class="metric-label">Faithfulness on golden eval</div>
-  </div>
-  <div class="metric-card">
-    <div class="metric-value">&lt;2.4s</div>
-    <div class="metric-label">Median response (fast path)</div>
   </div>
   <div class="metric-card">
     <div class="metric-value green">100%</div>

@@ -120,13 +120,12 @@ def render_message(role: str, content: str, sql: str | None = None, rows: list |
 
 
 # Top bar: back left, meta right
-bar_left, bar_mid, bar_right = st.columns([1.2, 3, 1.2])
+bar_left, bar_mid, bar_right = st.columns([1, 3.4, 1])
 with bar_left:
-    st.markdown('<div class="back-btn">', unsafe_allow_html=True)
-    st.page_link("app.py", label="← Home", icon="🏠")
-    st.markdown("</div>", unsafe_allow_html=True)
+    with st.container(key="homebtn"):
+        st.page_link("app.py", label="Home", icon="🏠")
 with bar_mid:
-    st.markdown("##### US Census Chat Agent")
+    st.markdown('<div class="chat-title">US Census Chat Agent</div>', unsafe_allow_html=True)
 with bar_right:
     if st.button("Clear", use_container_width=True):
         st.session_state.messages = []

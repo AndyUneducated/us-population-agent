@@ -134,40 +134,80 @@ h1, h2, h3, h4, p, label, span, .stMarkdown {
     letter-spacing: 0.01em;
 }
 
-/* Center CTA */
+/* All page links: no underline by default */
+div[data-testid="stPageLink"] a {
+    text-decoration: none !important;
+}
+
 .primary-cta-note {
     color: var(--muted);
     font-size: 0.78rem;
     text-align: center;
-    margin: 0.9rem 0 0.45rem;
+    margin: 0.9rem 0 0.5rem;
 }
 
-div[data-testid="stPageLink"] a,
-div[data-testid="stPageLink-NavLink"] a {
-    text-decoration: none !important;
-}
-
-div[data-testid="stPageLink"] {
+/* Primary CTA (landing) — scoped to keyed container */
+.st-key-bigcta div[data-testid="stPageLink"] {
     justify-content: center !important;
 }
 
-div[data-testid="stPageLink"] a {
-    font-size: 1.15rem !important;
-    font-weight: 700 !important;
-    padding: 0.95rem 2rem !important;
-    border-radius: 12px !important;
+.st-key-bigcta div[data-testid="stPageLink"] a {
     background: linear-gradient(135deg, #06b6d4, #0284c7) !important;
     color: #fff !important;
-    border: 1px solid rgba(34, 211, 238, 0.4) !important;
-    box-shadow: 0 12px 32px -14px rgba(34, 211, 238, 0.65) !important;
-    display: block !important;
-    text-align: center !important;
+    border: 1px solid rgba(34, 211, 238, 0.45) !important;
+    border-radius: 12px !important;
+    padding: 0.9rem 2rem !important;
+    box-shadow: 0 12px 32px -14px rgba(34, 211, 238, 0.7) !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 0.5rem !important;
+    width: 100% !important;
     transition: transform 0.15s ease, box-shadow 0.15s ease !important;
 }
 
-div[data-testid="stPageLink"] a:hover {
+.st-key-bigcta div[data-testid="stPageLink"] a:hover {
     transform: translateY(-2px);
-    box-shadow: 0 16px 40px -12px rgba(34, 211, 238, 0.75) !important;
+    box-shadow: 0 16px 40px -12px rgba(34, 211, 238, 0.8) !important;
+}
+
+.st-key-bigcta div[data-testid="stPageLink"] a p,
+.st-key-bigcta div[data-testid="stPageLink"] a span {
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+    color: #fff !important;
+    margin: 0 !important;
+}
+
+/* Home button (chat) — small, scoped to keyed container */
+.st-key-homebtn div[data-testid="stPageLink"] a {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 0.4rem 0.8rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    gap: 0.35rem !important;
+}
+
+.st-key-homebtn div[data-testid="stPageLink"] a:hover {
+    border-color: var(--accent) !important;
+}
+
+.st-key-homebtn div[data-testid="stPageLink"] a p,
+.st-key-homebtn div[data-testid="stPageLink"] a span {
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    color: var(--muted) !important;
+    margin: 0 !important;
+}
+
+.chat-title {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+    padding-top: 0.35rem;
 }
 
 /* Feedback highlight banner */
@@ -353,15 +393,6 @@ div[data-testid="stPageLink"] a:hover {
     margin-bottom: 1rem;
     padding-bottom: 0.75rem;
     border-bottom: 1px solid var(--border);
-}
-
-.back-btn a {
-    font-size: 0.85rem !important;
-    color: var(--muted) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 8px !important;
-    padding: 0.35rem 0.75rem !important;
-    background: var(--surface) !important;
 }
 
 .feedback-callout {
