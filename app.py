@@ -42,7 +42,6 @@ st.markdown(
 <div class="hero-wrap">
   <div class="hero-badge">Snowflake Applied AI · Production Demo</div>
   <h1 class="hero-title">Ask America anything.<br><span>Get numbers, not guesses.</span></h1>
-  <p class="hero-sub">Live Census data · Snowflake SQL · Eval-driven AI</p>
 </div>
 """,
     unsafe_allow_html=True,

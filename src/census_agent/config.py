@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+import re
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -41,6 +42,38 @@ _bootstrap_env()
 
 def _env(key: str, default: str = "") -> str:
     return os.environ.get(key, default).strip()
+
+
+def _available_duckdb_years(path: Path) -> list[int]:
+    """Return census vintages present in a local DuckDB snapshot (newest first)."""
+    import duckdb
+
+    conn = duckdb.connect(str(path), read_only=True)
+    try:
+        rows = conn.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'main'"
+        ).fetchall()
+        years: set[int] = set()
+        for (name,) in rows:
+            match = re.match(r"^(\d{4})_", str(name))
+            if match:
+                years.add(int(match.group(1)))
+        return sorted(years, reverse=True)
+    finally:
+        conn.close()
+
+
+def resolve_census_year(settings: Settings) -> int:
+    """Use configured year, or the newest vintage available in DuckDB."""
+    configured = settings.census_year
+    if settings.data_backend != "duckdb" or not settings.duckdb_path.exists():
+        return configured
+    available = _available_duckdb_years(settings.duckdb_path)
+    if not available:
+        return configured
+    if configured in available:
+        return configured
+    return available[0]
 
 
 @dataclass(frozen=True)
@@ -112,5 +145,7 @@ _settings: Settings | None = None
 def get_settings() -> Settings:
     global _settings
     if _settings is None:
-        _settings = Settings()
+        base = Settings()
+        resolved = resolve_census_year(base)
+        _settings = replace(base, census_year=resolved) if resolved != base.census_year else base
     return _settings
