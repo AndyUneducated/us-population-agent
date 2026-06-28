@@ -608,6 +608,46 @@ div[data-testid="stChatInput"] {
 </style>
 """
 
+CHAT_INPUT_ALIGN_CSS = """
+<style>
+/* Pin chat input to the same column as .block-container (1080px, centered) */
+section[data-testid="stBottom"] {
+    background: transparent !important;
+}
+
+[data-testid="stBottomBlockContainer"] {
+    max-width: 1080px !important;
+    width: 100% !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+    box-sizing: border-box !important;
+}
+
+@media (min-width: 1200px) {
+    [data-testid="stBottomBlockContainer"] {
+        padding-left: 5rem !important;
+        padding-right: 5rem !important;
+    }
+}
+
+.stChatFloatingInputContainer {
+    max-width: 100% !important;
+    width: 100% !important;
+    left: auto !important;
+    right: auto !important;
+    transform: none !important;
+    padding-bottom: 0.75rem !important;
+    background: linear-gradient(180deg, transparent, var(--bg) 35%) !important;
+}
+
+div[data-testid="stChatInput"] > div {
+    max-width: 100% !important;
+}
+</style>
+"""
+
 LANDING_CSS = DARK_THEME_CSS
 
-CHAT_CSS = DARK_THEME_CSS
+CHAT_CSS = DARK_THEME_CSS + CHAT_INPUT_ALIGN_CSS
