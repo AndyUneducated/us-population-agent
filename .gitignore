@@ -4,7 +4,7 @@
 __pycache__/
 *.pyc
 .DS_Store
-data/
+/data/
 *.duckdb
 src/*.egg-info/
 dist/
