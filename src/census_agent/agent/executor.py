@@ -8,7 +8,7 @@ from contextlib import contextmanager
 from typing import Any, Iterator
 
 from census_agent.config import Settings, get_settings
-from census_agent.data.gateway import DataGateway
+from census_agent.data.gateway import DataGateway, normalize_rows
 
 
 class QueryTimeoutError(TimeoutError):
@@ -50,7 +50,7 @@ class QueryExecutor:
         timeout = self._settings.query_timeout_seconds
         try:
             with _time_limit(timeout):
-                return self._gateway.execute(sql)
+                return normalize_rows(self._gateway.execute(sql))
         except QueryTimeoutError:
             raise
         except Exception as e:

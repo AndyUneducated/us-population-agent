@@ -23,18 +23,114 @@ class GeoMatch:
         return self.state
 
 
-# Common state aliases
+# Full state names and common aliases → USPS abbreviation
 STATE_ALIASES: dict[str, str] = {
+    "alabama": "AL",
+    "al": "AL",
+    "alaska": "AK",
+    "ak": "AK",
+    "arizona": "AZ",
+    "az": "AZ",
+    "arkansas": "AR",
+    "ar": "AR",
     "california": "CA",
     "ca": "CA",
-    "texas": "TX",
-    "tx": "TX",
+    "colorado": "CO",
+    "co": "CO",
+    "connecticut": "CT",
+    "ct": "CT",
+    "delaware": "DE",
+    "de": "DE",
+    "florida": "FL",
+    "fl": "FL",
+    "georgia": "GA",
+    "ga": "GA",
+    "hawaii": "HI",
+    "hi": "HI",
+    "idaho": "ID",
+    "id": "ID",
+    "illinois": "IL",
+    "il": "IL",
+    "indiana": "IN",
+    "in": "IN",
+    "iowa": "IA",
+    "ia": "IA",
+    "kansas": "KS",
+    "ks": "KS",
+    "kentucky": "KY",
+    "ky": "KY",
+    "louisiana": "LA",
+    "la": "LA",
+    "maine": "ME",
+    "me": "ME",
+    "maryland": "MD",
+    "md": "MD",
+    "massachusetts": "MA",
+    "ma": "MA",
+    "michigan": "MI",
+    "mi": "MI",
+    "minnesota": "MN",
+    "mn": "MN",
+    "mississippi": "MS",
+    "ms": "MS",
+    "missouri": "MO",
+    "mo": "MO",
+    "montana": "MT",
+    "mt": "MT",
+    "nebraska": "NE",
+    "ne": "NE",
+    "nevada": "NV",
+    "nv": "NV",
+    "new hampshire": "NH",
+    "nh": "NH",
+    "new jersey": "NJ",
+    "nj": "NJ",
+    "new mexico": "NM",
+    "nm": "NM",
     "new york": "NY",
     "ny": "NY",
-    "florida": "FL",
-    "fl": "FL",
-    "florida": "FL",
-    "fl": "FL",
+    "north carolina": "NC",
+    "nc": "NC",
+    "north dakota": "ND",
+    "nd": "ND",
+    "ohio": "OH",
+    "oh": "OH",
+    "oklahoma": "OK",
+    "ok": "OK",
+    "oregon": "OR",
+    "or": "OR",
+    "pennsylvania": "PA",
+    "pa": "PA",
+    "rhode island": "RI",
+    "ri": "RI",
+    "south carolina": "SC",
+    "sc": "SC",
+    "south dakota": "SD",
+    "sd": "SD",
+    "tennessee": "TN",
+    "tn": "TN",
+    "texas": "TX",
+    "tx": "TX",
+    "utah": "UT",
+    "ut": "UT",
+    "vermont": "VT",
+    "vt": "VT",
+    "virginia": "VA",
+    "va": "VA",
+    "washington": "WA",
+    "wa": "WA",
+    "west virginia": "WV",
+    "wv": "WV",
+    "wisconsin": "WI",
+    "wi": "WI",
+    "wyoming": "WY",
+    "wy": "WY",
+    "district of columbia": "DC",
+    "dc": "DC",
+    "united states": "US",
+    "usa": "US",
+    "u.s.": "US",
+    "nationwide": "US",
 }
 
 
@@ -65,41 +161,75 @@ class GeoResolver:
             self._counties.append((st, sf, county, cf))
         self._loaded = True
 
+    def _resolve_state(self, text: str, text_lower: str) -> tuple[str, str] | None:
+        # Prefer full state names (longest alias first to match "new york" before "york")
+        for alias in sorted(STATE_ALIASES, key=len, reverse=True):
+            if len(alias) <= 2:
+                continue
+            if re.search(rf"\b{re.escape(alias)}\b", text_lower):
+                abbr = STATE_ALIASES[alias]
+                if abbr == "US":
+                    return None
+                fips = self._states.get(abbr)
+                if fips:
+                    return abbr, fips
+        # Two-letter abbreviations must appear uppercase to avoid matching common words ("in", "or", "me")
+        for abbr, fips in self._states.items():
+            if len(abbr) == 2 and re.search(rf"\b{re.escape(abbr)}\b", text):
+                return abbr, fips
+        return None
+
+    def _resolve_county(
+        self, text_lower: str, state_abbr: str | None
+    ) -> tuple[str, str, str, str] | None:
+        best: tuple[str, str, str, str] | None = None
+        best_len = 0
+        for st, sf, county, cf in self._counties:
+            if state_abbr and st != state_abbr:
+                continue
+            county_lower = county.lower().replace(" county", "")
+            if county_lower in text_lower or county.lower() in text_lower:
+                if len(county_lower) > best_len:
+                    best = (st, sf, county, cf)
+                    best_len = len(county_lower)
+        return best
+
+    def _state_alias_matched(self, text_lower: str, state_abbr: str) -> bool:
+        for alias, abbr in STATE_ALIASES.items():
+            if abbr == state_abbr and len(alias) > 2 and re.search(rf"\b{re.escape(alias)}\b", text_lower):
+                return True
+        return False
+
     def resolve(self, text: str) -> list[GeoMatch]:
         self._load()
         text_lower = text.lower()
         matches: list[GeoMatch] = []
 
-        # State detection
-        state_abbr: str | None = None
-        state_fips: str | None = None
-        for alias, abbr in STATE_ALIASES.items():
-            if re.search(rf"\b{re.escape(alias)}\b", text_lower):
-                state_abbr = abbr
-                state_fips = self._states.get(abbr)
-                break
-        if not state_abbr:
-            for abbr, fips in self._states.items():
-                if re.search(rf"\b{re.escape(abbr.lower())}\b", text_lower):
-                    state_abbr = abbr
-                    state_fips = fips
-                    break
+        state = self._resolve_state(text, text_lower)
+        state_abbr = state[0] if state else None
+        state_fips = state[1] if state else None
 
-        # County detection (fuzzy substring)
         county_hit: tuple[str, str, str, str] | None = None
-        for st, sf, county, cf in self._counties:
-            county_lower = county.lower().replace(" county", "")
-            if county_lower in text_lower or county.lower() in text_lower:
-                if state_abbr and st != state_abbr:
-                    continue
-                county_hit = (st, sf, county, cf)
-                break
+        if "county" in text_lower:
+            county_hit = self._resolve_county(text_lower, state_abbr)
+        elif not state_abbr:
+            county_hit = self._resolve_county(text_lower, None)
+
+        if county_hit:
+            st, sf, county, cf = county_hit
+            # Avoid "New York" → New York County when user meant the state
+            county_stem = county.lower().replace(" county", "")
+            if state_abbr and self._state_alias_matched(text_lower, state_abbr):
+                if county_stem in STATE_ALIASES and STATE_ALIASES[county_stem] == state_abbr:
+                    county_hit = None
 
         if county_hit:
             st, sf, county, cf = county_hit
             matches.append(GeoMatch(state=st, state_fips=sf, county=county, county_fips=cf))
         elif state_abbr and state_fips:
-            matches.append(GeoMatch(state=state_abbr, state_fips=state_fips, county=None, county_fips=None))
+            matches.append(
+                GeoMatch(state=state_abbr, state_fips=state_fips, county=None, county_fips=None)
+            )
 
         return matches
 

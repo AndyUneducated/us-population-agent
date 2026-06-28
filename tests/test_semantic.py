@@ -62,6 +62,32 @@ def test_geo_county_resolution() -> None:
     assert matches[0].county_fips == "085"
 
 
+def test_geo_new_york_prefers_state() -> None:
+    gw = FakeGateway(
+        [
+            {"STATE": "NY", "STATE_FIPS": "36", "COUNTY": "New York County", "COUNTY_FIPS": "061"},
+            {"STATE": "NY", "STATE_FIPS": "36", "COUNTY": "Kings County", "COUNTY_FIPS": "047"},
+        ]
+    )
+    resolver = GeoResolver(gw)
+    matches = resolver.resolve("How about New York?")
+    assert len(matches) == 1
+    assert matches[0].state == "NY"
+    assert matches[0].county is None
+
+
+def test_geo_oregon_not_indiana() -> None:
+    gw = FakeGateway(
+        [
+            {"STATE": "OR", "STATE_FIPS": "41", "COUNTY": "Multnomah County", "COUNTY_FIPS": "051"},
+            {"STATE": "IN", "STATE_FIPS": "18", "COUNTY": "Marion County", "COUNTY_FIPS": "097"},
+        ]
+    )
+    resolver = GeoResolver(gw)
+    matches = resolver.resolve("What about Oregon?")
+    assert matches[0].state == "OR"
+
+
 def test_metrics_catalog_not_empty() -> None:
     assert len(METRICS) >= 4
     assert STATE_ALIASES["california"] == "CA"

@@ -34,8 +34,26 @@ if "feedback_numbers" not in st.session_state:
 
 
 @st.cache_resource
+def get_field_index():
+    """Cache only the lexical index — not the agent (rewriter slots must stay per-session)."""
+    from census_agent.retrieval.index import FieldIndex
+
+    if settings.embedding_index_path.exists():
+        return FieldIndex.load(settings.embedding_index_path)
+    return None
+
+
 def get_agent() -> CensusAgent:
-    return CensusAgent(settings=settings)
+    if "census_agent" not in st.session_state:
+        index = get_field_index()
+        st.session_state.census_agent = CensusAgent(settings=settings, index=index)
+    return st.session_state.census_agent
+
+
+def _reset_agent() -> None:
+    agent = st.session_state.pop("census_agent", None)
+    if agent is not None:
+        agent.close()
 
 
 def _display_feedback_number(seq: int) -> int:
@@ -131,6 +149,7 @@ with bar_right:
         st.session_state.messages = []
         st.session_state.feedback = {}
         st.session_state.feedback_numbers = {}
+        _reset_agent()
         st.rerun()
 
 community_total = FEEDBACK_DISPLAY_BASE + count_feedback(settings)

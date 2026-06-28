@@ -56,8 +56,8 @@ def classify_input(text: str) -> IntentClass:
     for pat in CENSUS_SIGNALS:
         if re.search(pat, lower, re.IGNORECASE):
             return IntentClass.IN_SCOPE
-    # Short follow-ups like "what about Texas?" inherit context in rewriter
-    if re.search(r"\b(what about|how about|and)\b", lower):
+    # Short follow-ups like "what about Texas?" or "same for California?" inherit context
+    if re.search(r"\b(what about|how about|same for|and)\b", lower):
         return IntentClass.IN_SCOPE
     return IntentClass.OUT_OF_SCOPE
 

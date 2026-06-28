@@ -21,6 +21,15 @@ def _format_number(value: Any) -> str:
     return f"{num:,.2f}"
 
 
+def _row_get(row: dict[str, Any], key: str, default: str = "") -> Any:
+    if key in row:
+        return row[key]
+    upper = key.upper()
+    if upper in row:
+        return row[upper]
+    return default
+
+
 def synthesize_answer(
     question: str,
     sql: str,
@@ -36,9 +45,9 @@ def synthesize_answer(
         )
 
     row = rows[0]
-    region = row.get("region", "the selected area")
-    metric = row.get("metric", "the requested metric")
-    value = row.get("value")
+    region = _row_get(row, "region", "the selected area")
+    metric = _row_get(row, "metric", "the requested metric")
+    value = _row_get(row, "value")
 
     year = settings.census_year
     answer = (

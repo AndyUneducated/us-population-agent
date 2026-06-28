@@ -2,42 +2,11 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
-
-import duckdb
-import pytest
-
 from census_agent.agent.orchestrator import CensusAgent
+from census_agent.agent.rewriter import Message
 from census_agent.config import Settings
+from census_agent.data.gateway import normalize_rows
 from census_agent.guardrails.input import IntentClass, classify_input
-
-
-def _mini_db(path: Path) -> None:
-    conn = duckdb.connect(str(path))
-    conn.execute('CREATE TABLE "2019_METADATA_CBG_FIPS_CODES" (STATE VARCHAR, STATE_FIPS VARCHAR, COUNTY VARCHAR, COUNTY_FIPS VARCHAR)')
-    conn.execute("INSERT INTO \"2019_METADATA_CBG_FIPS_CODES\" VALUES ('CA','06','Santa Clara County','085'), ('TX','48','Travis County','453')")
-    conn.execute('CREATE TABLE "2019_CBG_B01" (CENSUS_BLOCK_GROUP VARCHAR, "B01003e1" VARCHAR, "B01002e1" VARCHAR)')
-    conn.execute("INSERT INTO \"2019_CBG_B01\" VALUES ('060850001001','1000','35'), ('060850001002','2000','40'), ('480453001001','5000','30')")
-    conn.execute('CREATE TABLE "2019_CBG_B19" (CENSUS_BLOCK_GROUP VARCHAR, "B19013e1" VARCHAR)')
-    conn.execute("INSERT INTO \"2019_CBG_B19\" VALUES ('060850001001','80000'), ('480453001001','60000')")
-    conn.execute('CREATE TABLE "2019_CBG_B23" (CENSUS_BLOCK_GROUP VARCHAR, "B23025e3" VARCHAR, "B23025e5" VARCHAR)')
-    conn.execute("INSERT INTO \"2019_CBG_B23\" VALUES ('060850001001','100','5')")
-    conn.execute('CREATE TABLE "2019_CBG_B25" (CENSUS_BLOCK_GROUP VARCHAR, "B25003e1" VARCHAR, "B25003e2" VARCHAR)')
-    conn.execute('CREATE TABLE "2019_METADATA_CBG_FIELD_DESCRIPTIONS" (TABLE_ID VARCHAR, TABLE_NUMBER VARCHAR, TABLE_TITLE VARCHAR, TABLE_TOPICS VARCHAR, FIELD_LEVEL_1 VARCHAR, FIELD_LEVEL_2 VARCHAR, FIELD_LEVEL_3 VARCHAR, FIELD_LEVEL_4 VARCHAR, FIELD_LEVEL_5 VARCHAR)')
-    conn.close()
-
-
-@pytest.fixture
-def agent_settings(tmp_path: Path) -> Settings:
-    db = tmp_path / "mini.duckdb"
-    _mini_db(db)
-    return Settings(
-        duckdb_path=db,
-        data_backend="duckdb",
-        census_year=2019,
-        embedding_index_path=tmp_path / "no_index.json",
-    )
 
 
 def test_guardrail_off_topic() -> None:
@@ -56,3 +25,41 @@ def test_agent_refuses_poem(agent_settings: Settings) -> None:
     with CensusAgent(settings=agent_settings) as agent:
         resp = agent.ask("Write me a poem")
     assert resp.refused
+
+
+def test_agent_followup_ca_then_tx(agent_settings: Settings) -> None:
+    with CensusAgent(settings=agent_settings) as agent:
+        first = agent.ask("What is the total population of California?")
+        assert not first.refused
+        assert first.rows
+        assert first.rows[0]["region"] == "CA"
+
+        history = [
+            Message(role="user", content="What is the total population of California?"),
+            Message(role="assistant", content=first.answer),
+        ]
+        second = agent.ask("What about Texas?", history=history)
+        assert not second.refused
+        assert second.error is None
+        assert second.rows
+        assert second.rows[0]["region"] == "TX"
+        assert second.rows[0]["metric"] == "Total Population"
+        assert "TX" in (second.sql or "")
+
+
+def test_agent_followup_inherits_metric_from_assistant(agent_settings: Settings) -> None:
+    assistant = (
+        "Based on 2019 ACS 5-year estimates, **Total Population** for **CA** "
+        "is approximately **3,000**."
+    )
+    with CensusAgent(settings=agent_settings) as agent:
+        resp = agent.ask("What about Texas?", history=[Message(role="assistant", content=assistant)])
+    assert not resp.refused
+    assert resp.rows
+    assert resp.rows[0]["region"] == "TX"
+
+
+def test_normalize_rows_lowercases_snowflake_keys() -> None:
+    rows = normalize_rows([{"REGION": "TX", "METRIC": "Total Population", "VALUE": 1.0}])
+    assert rows[0]["region"] == "TX"
+    assert rows[0]["value"] == 1.0

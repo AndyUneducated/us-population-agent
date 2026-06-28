@@ -8,6 +8,11 @@ from typing import Any
 from census_agent.config import Settings, get_settings
 
 
+def normalize_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Lower-case result column names (Snowflake returns unquoted aliases as uppercase)."""
+    return [{str(k).lower(): v for k, v in row.items()} for row in rows]
+
+
 class DataGateway(ABC):
     """Abstract read-only SQL gateway."""
 
