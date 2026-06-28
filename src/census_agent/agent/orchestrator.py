@@ -15,7 +15,7 @@ from census_agent.agent.degradation import (
 )
 from census_agent.agent.executor import QueryExecutor
 from census_agent.agent.rewriter import Message, Rewriter
-from census_agent.agent.sql_builder import build_metric_sql
+from census_agent.agent.sql_builder import build_comparison_sql, build_metric_sql
 from census_agent.agent.sql_generator import generate_sql_llm
 from census_agent.agent.synthesizer import synthesize_answer
 from census_agent.config import Settings, get_settings
@@ -216,8 +216,20 @@ class CensusAgent:
 
         sql: str | None = None
         if analysis.metric:
-            sql = build_metric_sql(analysis.metric, geo, self._settings)
-            trace.record("sql_build", mode="metric_fast_path", metric=analysis.metric.id)
+            # Detect multi-state comparisons from the original question: the
+            # rewriter collapses multi-geo queries to a single standalone geo.
+            compare_geos = self._catalog.geo_resolver.resolve_states(question)
+            if len(compare_geos) >= 2:
+                sql = build_comparison_sql(analysis.metric, compare_geos, self._settings)
+                trace.record(
+                    "sql_build",
+                    mode="metric_comparison",
+                    metric=analysis.metric.id,
+                    states=[g.state for g in compare_geos],
+                )
+            else:
+                sql = build_metric_sql(analysis.metric, geo, self._settings)
+                trace.record("sql_build", mode="metric_fast_path", metric=analysis.metric.id)
         elif self._retriever:
             retrieval = self._retriever.retrieve(rewritten)
             trace.record("retrieval", source=retrieval.source, fields=len(retrieval.fields))

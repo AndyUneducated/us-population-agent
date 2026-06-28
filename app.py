@@ -103,34 +103,38 @@ example_items = [
     (
         "State comparison",
         "Compare population between California and Texas, then explain the difference.",
+        "Compare population between California and Texas, then explain the difference.",
     ),
     (
         "Economic signal",
+        "What is the median household income in New York, and how should I interpret it?",
         "What is the median household income in New York, and how should I interpret it?",
     ),
     (
         "Labor market",
         "What is the unemployment rate in Florida? Show the SQL behind it.",
+        "What is the unemployment rate in Florida? Show the SQL behind it.",
     ),
     (
         "Follow-up ready",
-        "Start with California population, then ask: what about Texas?",
+        "Start with California population — then just ask “what about Texas?”",
+        "What is the total population of California?",
     ),
 ]
 example_cols = st.columns(4)
-for col, (title, prompt) in zip(example_cols, example_items):
+for col, (title, copy, seed) in zip(example_cols, example_items):
     with col:
         st.markdown(
             f"""
 <div class="example-card">
   <div class="example-title">{title}</div>
-  <div class="example-copy">{prompt}</div>
+  <div class="example-copy">{copy}</div>
 </div>
 """,
             unsafe_allow_html=True,
         )
         if st.button("Ask this", key=f"ex_{title}", use_container_width=True):
-            st.session_state["seed_prompt"] = prompt
+            st.session_state["seed_prompt"] = seed
             st.switch_page("pages/1_💬_Chat.py")
 
 st.markdown('<p class="section-title">Why this stands out</p>', unsafe_allow_html=True)

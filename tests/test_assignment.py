@@ -29,6 +29,20 @@ class TestAssignmentCore:
         assert resp.rows
         assert resp.rows[0]["region"] == "CA"
 
+    def test_multi_state_comparison(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            resp = agent.ask(
+                "Compare population between California and Texas, then explain the difference."
+            )
+        assert not resp.refused
+        assert resp.error is None
+        regions = {r["region"] for r in resp.rows}
+        assert {"CA", "TX"} <= regions
+        assert len(resp.rows) >= 2
+        assert resp.faithful
+        # The derived gap should be grounded (pairwise difference allowance)
+        assert "gap" in resp.answer.lower()
+
     def test_multi_turn_context(self, agent_settings: Settings) -> None:
         with CensusAgent(settings=agent_settings) as agent:
             first = agent.ask("What is the total population of California?")
@@ -62,6 +76,58 @@ class TestAssignmentCore:
                 history.extend(
                     [Message("user", question), Message("assistant", resp.answer)]
                 )
+
+    def test_metric_survives_unanswerable_interruption(self, agent_settings: Settings) -> None:
+        """A refusal/degradation reply must not pollute the inherited metric."""
+        with CensusAgent(settings=agent_settings) as agent:
+            history: list[Message] = []
+            q1 = "What is the median household income in California?"
+            r1 = agent.ask(q1)
+            history += [Message("user", q1), Message("assistant", r1.answer)]
+
+            q2 = "What is the religious affiliation breakdown in Texas?"
+            r2 = agent.ask(q2, history=history)
+            assert r2.error == "not_in_dataset"
+            history += [Message("user", q2), Message("assistant", r2.answer)]
+
+            r3 = agent.ask("What about Texas?", history=history)
+        assert r3.rows
+        assert r3.rows[0]["region"] == "TX"
+        assert r3.rows[0]["metric"] == "Median Household Income"
+
+    def test_metric_switch_then_followup_inherits_new_metric(
+        self, agent_settings: Settings
+    ) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            history: list[Message] = []
+            for q in (
+                "What is the total population of California?",
+                "What about Texas?",
+                "What is the median household income in Florida?",
+            ):
+                r = agent.ask(q, history=history)
+                history += [Message("user", q), Message("assistant", r.answer)]
+            final = agent.ask("What about Washington?", history=history)
+        assert final.rows
+        assert final.rows[0]["region"] == "WA"
+        assert final.rows[0]["metric"] == "Median Household Income"
+
+    def test_offtopic_interruption_then_recovery(self, agent_settings: Settings) -> None:
+        with CensusAgent(settings=agent_settings) as agent:
+            history: list[Message] = []
+            for q in (
+                "What is the total population of California?",
+                "What about Texas?",
+            ):
+                r = agent.ask(q, history=history)
+                history += [Message("user", q), Message("assistant", r.answer)]
+            weather = agent.ask("What is the weather today?", history=history)
+            assert weather.refused
+            history += [Message("user", "What is the weather today?"), Message("assistant", weather.answer)]
+            recovered = agent.ask("What about Florida?", history=history)
+        assert recovered.rows
+        assert recovered.rows[0]["region"] == "FL"
+        assert recovered.rows[0]["metric"] == "Total Population"
 
     def test_metric_persists_across_followups(self, agent_settings: Settings) -> None:
         with CensusAgent(settings=agent_settings) as agent:

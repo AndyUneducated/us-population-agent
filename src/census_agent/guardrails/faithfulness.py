@@ -77,6 +77,19 @@ def check_faithfulness(answer: str, rows: list[dict[str, Any]]) -> tuple[bool, s
     row_text = " ".join(str(v) for row in rows for v in row.values())
     row_nums = _extract_numbers(row_text)
 
+    # For multi-region comparisons, answers may state a derived gap (difference)
+    # between two grounded values. Treat pairwise differences as grounded too.
+    if len(rows) > 1:
+        numeric: list[float] = []
+        for r in row_nums:
+            try:
+                numeric.append(float(r))
+            except ValueError:
+                continue
+        for i in range(len(numeric)):
+            for j in range(i + 1, len(numeric)):
+                row_nums.add(_normalize_num(str(abs(numeric[i] - numeric[j]))))
+
     missing = [n for n in answer_nums if not _number_in_rows(n, row_nums)]
     if missing:
         return False, f"ungrounded_numbers:{','.join(missing[:5])}"

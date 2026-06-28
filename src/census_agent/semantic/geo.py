@@ -233,6 +233,37 @@ class GeoResolver:
 
         return matches
 
+    def resolve_states(self, text: str) -> list[GeoMatch]:
+        """Resolve ALL distinct states mentioned, in order of appearance.
+
+        Used for multi-state comparison ("compare California and Texas").
+        Only state-level matches; ignores ambiguous regions like "the South".
+        """
+        self._load()
+        text_lower = text.lower()
+        found: list[tuple[int, GeoMatch]] = []
+        seen: set[str] = set()
+
+        for alias in sorted(STATE_ALIASES, key=len, reverse=True):
+            if len(alias) <= 2:
+                continue
+            abbr = STATE_ALIASES[alias]
+            if abbr == "US" or abbr in seen:
+                continue
+            if re.search(rf"\b{re.escape(alias)}\b", text_lower):
+                fips = self._states.get(abbr)
+                if fips:
+                    found.append((text_lower.find(alias), GeoMatch(abbr, fips, None, None)))
+                    seen.add(abbr)
+
+        for abbr, fips in self._states.items():
+            if len(abbr) == 2 and abbr not in seen and re.search(rf"\b{re.escape(abbr)}\b", text):
+                found.append((text.find(abbr), GeoMatch(abbr, fips, None, None)))
+                seen.add(abbr)
+
+        found.sort(key=lambda x: x[0])
+        return [g for _, g in found]
+
     def sql_filter(self, geo: GeoMatch, cbg_alias: str = "d") -> str:
         """Build SQL WHERE fragment filtering by state/county via CBG id prefix."""
         if geo.county_fips and geo.state_fips:

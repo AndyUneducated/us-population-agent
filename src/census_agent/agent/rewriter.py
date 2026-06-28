@@ -48,20 +48,33 @@ class Rewriter:
         return self._standalone_question(query, slots)
 
     def _slots_from_history(self, history: list[Message]) -> ConversationSlots:
-        """Rebuild slots from recent history (most recent signal wins)."""
+        """Rebuild slots from recent history.
+
+        User messages take priority (the human's intent), with assistant messages
+        as a fallback for seeded conversations. This prevents refusal/degradation
+        replies (which list capability keywords like "population, income, ...")
+        from polluting the inherited metric/geo.
+        """
+        users = [m.content for m in history if m.role == "user"]
+        assistants = [m.content for m in history if m.role == "assistant"]
         slots = ConversationSlots()
-        for msg in reversed(history):
-            if msg.role not in ("user", "assistant"):
-                continue
-            if slots.metric is None:
-                metric = match_metric(msg.content)
-                if metric:
-                    slots.metric = metric
-            if slots.geo is None:
-                geo_matches = self.geo_resolver.resolve(msg.content)
-                if geo_matches:
-                    slots.geo = geo_matches[0]
+        slots.metric = self._last_metric(users) or self._last_metric(assistants)
+        slots.geo = self._last_geo(users) or self._last_geo(assistants)
         return slots
+
+    def _last_metric(self, contents: list[str]) -> MetricDefinition | None:
+        for content in reversed(contents):
+            metric = match_metric(content)
+            if metric:
+                return metric
+        return None
+
+    def _last_geo(self, contents: list[str]) -> GeoMatch | None:
+        for content in reversed(contents):
+            geo_matches = self.geo_resolver.resolve(content)
+            if geo_matches:
+                return geo_matches[0]
+        return None
 
     def _apply_query(self, query: str, slots: ConversationSlots) -> ConversationSlots:
         metric = match_metric(query)
